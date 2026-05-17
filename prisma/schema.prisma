@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AppRole {
+  EMPLOYEE
+  MANAGER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  INVITED
+}
+
+model UserProfile {
+  id          String     @id @db.Uuid
+  email       String     @unique
+  fullName    String
+  role        AppRole    @default(EMPLOYEE)
+  status      UserStatus @default(ACTIVE)
+  department  String?
+  title       String?
+  managerId   String?    @db.Uuid
+  manager     UserProfile?  @relation("ManagerReports", fields: [managerId], references: [id], onDelete: SetNull)
+  reports     UserProfile[] @relation("ManagerReports")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([role, status])
+  @@index([managerId])
+  @@map("user_profiles")
+}
