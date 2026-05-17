@@ -1,24 +1,52 @@
 import { NextRequest } from 'next/server'
+import { AppRole } from '@prisma/client'
 
 import { withErrorHandling } from '@/lib/api-handler'
 import { SubmitSheetSchema } from '@/lib/validations/sheet.schema'
 import { submitSheet } from '@/lib/dal/sheets.dal'
-import { requireUser } from '@/lib/auth/session'
+import { getCurrentUser } from '@/lib/auth/session'
+import {
+  assertAuthenticated,
+  assertRole,
+} from '@/lib/guards/rbac'
 
-type SubmitRouteParams = { sheetId: string }
+type SubmitRouteParams = {
+  sheetId: string
+}
 
 export const POST = withErrorHandling<SubmitRouteParams>(
   async (request: NextRequest, { params }) => {
-    const user = await requireUser()
+    const user = await getCurrentUser()
 
-    const body: unknown = await request.json().catch(() => null)
+    const session = user
+      ? {
+          userId: user.id,
+          email: user.email ?? '',
+          role: AppRole.EMPLOYEE,
+        }
+      : null
+
+    assertAuthenticated(session)
+
+    assertRole(
+      session,
+      AppRole.EMPLOYEE,
+      AppRole.ADMIN,
+    )
+
+    const formData = await request.formData()
+
+        const body = {
+            updatedAt: formData.get('updatedAt'),
+        }
 
     if (body === null) {
       return Response.json(
         {
           error: {
             code: 'VALIDATION_ERROR',
-            message: 'Request body is missing or is not valid JSON',
+            message:
+              'Request body is missing or is not valid JSON',
           },
         },
         { status: 400 },
@@ -40,11 +68,13 @@ export const POST = withErrorHandling<SubmitRouteParams>(
       )
     }
 
-    const clientUpdatedAt = new Date(parsed.data.updatedAt)
+    const clientUpdatedAt = new Date(
+      parsed.data.updatedAt,
+    )
 
     const result = await submitSheet(
       params.sheetId,
-      user.id,
+      session.userId,
       clientUpdatedAt,
     )
 
@@ -53,8 +83,10 @@ export const POST = withErrorHandling<SubmitRouteParams>(
         data: {
           sheetId: result.id,
           status: result.status,
-          submittedAt: result.submittedAt?.toISOString() ?? null,
-          updatedAt: result.updatedAt.toISOString(),
+          submittedAt:
+            result.submittedAt?.toISOString() ?? null,
+          updatedAt:
+            result.updatedAt.toISOString(),
         },
       },
       { status: 200 },

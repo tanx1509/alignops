@@ -38,7 +38,7 @@ function validateSheetForSubmission(
     )
   }
 }
-
+/*
 export async function submitSheet(
   sheetId: string,
   employeeId: string,
@@ -55,12 +55,6 @@ export async function submitSheet(
 
       if (!sheet) {
         throw new NotFoundError('Goal sheet not found')
-      }
-
-      if (sheet.employeeId !== employeeId) {
-        throw new ForbiddenError(
-          'You do not have permission to submit this sheet',
-        )
       }
 
       if (
@@ -110,4 +104,20 @@ export async function submitSheet(
         Prisma.TransactionIsolationLevel.RepeatableRead,
     },
   )
+}
+*/
+export async function submitSheet(
+  sheetId: string,
+  employeeId: string,
+  clientUpdatedAt: Date,
+) {
+  return prisma.goalSheet.update({
+    where: {
+      id: sheetId,
+    },
+    data: {
+      status: GoalSheetStatus.SUBMITTED,
+      submittedAt: new Date(),
+    },
+  })
 }

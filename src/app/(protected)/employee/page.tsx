@@ -1,26 +1,85 @@
-import { PageHeader } from "@/components/app/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { prisma } from '@/lib/prisma'
 
-export default function EmployeeDashboardPage() {
+export default async function EmployeePage() {
+  const sheet = await prisma.goalSheet.findFirst({
+    where: {
+      employee: {
+        email: 'sanya.malhotra@alignops.local',
+      },
+    },
+    include: {
+      goals: true,
+    },
+    orderBy: {
+      updatedAt: 'desc',
+    },
+  })
+
+  if (!sheet) {
+    return (
+      <main className="p-8">
+        No goal sheet found.
+      </main>
+    )
+  }
+
   return (
-    <>
-      <PageHeader
-        description="Protected employee workspace foundation. Goal creation and quarterly updates plug in here."
-        eyebrow="Employee"
-        title="My Goal Workspace"
-      />
-      <div className="grid gap-4 p-6 md:grid-cols-3">
-        {["Goal sheet", "Quarterly check-ins", "Manager comments"].map((title) => (
-          <Card key={title}>
-            <CardHeader>
-              <CardTitle className="text-base">{title}</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Module slot reserved for the next implementation phase.
-            </CardContent>
-          </Card>
+    <main className="p-8 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">
+          My Goal Workspace
+        </h1>
+
+        <p className="text-gray-500">
+          Status: {sheet.status}
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {sheet.goals.map((goal) => (
+          <div
+            key={goal.id}
+            className="rounded-xl border p-5"
+          >
+            <h2 className="text-xl font-semibold">
+              {goal.title}
+            </h2>
+
+            <p className="mt-2 text-gray-600">
+              {goal.description}
+            </p>
+
+            <p className="mt-4">
+              Weightage:{' '}
+              {goal.weightage.toString()}%
+            </p>
+
+            <p>
+              Status: {goal.status}
+            </p>
+          </div>
         ))}
       </div>
-    </>
-  );
+
+      {sheet.status === 'DRAFT' && (
+  <form
+    action={`/api/sheets/${sheet.id}/submit`}
+    method="POST"
+  >
+    <input
+      type="hidden"
+      name="updatedAt"
+      value={sheet.updatedAt.toISOString()}
+    />
+
+    <button
+      type="submit"
+      className="rounded-lg bg-black px-5 py-3 text-white"
+    >
+      Submit Goals
+    </button>
+  </form>
+)}
+    </main>
+  )
 }

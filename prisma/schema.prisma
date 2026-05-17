@@ -8,6 +8,484 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model User {
+  id                         String                 @id @default(uuid()) @db.Uuid
+  authProviderId             String?                @unique
+  email                      String                 @unique
+  employeeCode               String?                @unique
+  fullName                   String
+  title                      String?
+  status                     UserStatus             @default(ACTIVE)
+  primaryOrgUnitId           String?                @db.Uuid
+  createdById                String?                @db.Uuid
+  updatedById                String?                @db.Uuid
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+  deletedAt                  DateTime?
+  version                    Int                    @default(1)
+  achievementUpdates         AchievementUpdate[]    @relation("AchievementEnteredBy")
+  approvalEvents             ApprovalEvent[]        @relation("ApprovalActor")
+  auditLogs                  AuditLog[]             @relation("AuditActor")
+  checkinCommentsAsManager   CheckinComment[]       @relation("CheckinManager")
+  escalationEventsAsEmployee EscalationEvent[]      @relation("EscalationEmployee")
+  escalationEventsAsManager  EscalationEvent[]      @relation("EscalationManager")
+  escalationsResolved        EscalationEvent[]      @relation("EscalationResolvedBy")
+  goalSheetsApproved         GoalSheet[]            @relation("GoalSheetApprovedBy")
+  goalSheetsAsEmployee       GoalSheet[]            @relation("GoalSheetEmployee")
+  goalSheetsAsManager        GoalSheet[]            @relation("GoalSheetManager")
+  notificationsTriggered     Notification[]         @relation("NotificationActor")
+  notificationsReceived      Notification[]         @relation("NotificationRecipient")
+  reportingLinesAsEmployee   ReportingLine[]        @relation("ReportingLineEmployee")
+  reportingLinesAsManager    ReportingLine[]        @relation("ReportingLineManager")
+  roleAssignments            RoleAssignment[]
+  sharedGoalsOwned           SharedGoalDefinition[] @relation("SharedGoalPrimaryOwner")
+  sharedGoalLinksReceived    SharedGoalLink[]       @relation("SharedGoalRecipient")
+  primaryOrgUnit             OrgUnit?               @relation("OrgUnitUsers", fields: [primaryOrgUnitId], references: [id])
+
+  @@index([status])
+  @@index([primaryOrgUnitId])
+  @@index([fullName])
+  @@map("users")
+}
+
+model RoleAssignment {
+  id          String               @id @default(uuid()) @db.Uuid
+  userId      String               @db.Uuid
+  role        AppRole
+  orgUnitId   String?              @db.Uuid
+  status      RoleAssignmentStatus @default(ACTIVE)
+  startsAt    DateTime             @default(now())
+  endsAt      DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  deletedAt   DateTime?
+  version     Int                  @default(1)
+  createdById String?              @db.Uuid
+  updatedById String?              @db.Uuid
+  orgUnit     OrgUnit?             @relation("RoleAssignmentOrgUnit", fields: [orgUnitId], references: [id])
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role, orgUnitId])
+  @@index([role, status])
+  @@index([orgUnitId, role])
+  @@map("role_assignments")
+}
+
+model OrgUnit {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  code                  String                 @unique
+  name                  String
+  type                  OrgUnitType
+  status                OrgUnitStatus          @default(ACTIVE)
+  parentId              String?                @db.Uuid
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  deletedAt             DateTime?
+  version               Int                    @default(1)
+  createdById           String?                @db.Uuid
+  updatedById           String?                @db.Uuid
+  goalSheets            GoalSheet[]
+  parent                OrgUnit?               @relation("OrgUnitHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children              OrgUnit[]              @relation("OrgUnitHierarchy")
+  reportingLines        ReportingLine[]
+  roleAssignments       RoleAssignment[]       @relation("RoleAssignmentOrgUnit")
+  sharedGoalDefinitions SharedGoalDefinition[]
+  members               User[]                 @relation("OrgUnitUsers")
+
+  @@index([parentId])
+  @@index([type, status])
+  @@map("org_units")
+}
+
+model ReportingLine {
+  id            String    @id @default(uuid()) @db.Uuid
+  employeeId    String    @db.Uuid
+  managerId     String    @db.Uuid
+  orgUnitId     String?   @db.Uuid
+  isPrimary     Boolean   @default(true)
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  version       Int       @default(1)
+  createdById   String?   @db.Uuid
+  updatedById   String?   @db.Uuid
+  employee      User      @relation("ReportingLineEmployee", fields: [employeeId], references: [id])
+  manager       User      @relation("ReportingLineManager", fields: [managerId], references: [id])
+  orgUnit       OrgUnit?  @relation(fields: [orgUnitId], references: [id])
+
+  @@unique([employeeId, managerId, effectiveFrom])
+  @@index([managerId, isPrimary])
+  @@index([employeeId, effectiveFrom, effectiveTo])
+  @@index([orgUnitId])
+  @@map("reporting_lines")
+}
+
+model Cycle {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  code                  String                 @unique
+  name                  String
+  status                CycleStatus            @default(DRAFT)
+  startsAt              DateTime
+  endsAt                DateTime
+  lockedAt              DateTime?
+  closedAt              DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  deletedAt             DateTime?
+  version               Int                    @default(1)
+  createdById           String?                @db.Uuid
+  updatedById           String?                @db.Uuid
+  checkinWindows        CheckinWindow[]
+  escalationEvents      EscalationEvent[]
+  escalationRules       EscalationRule[]
+  goalSheets            GoalSheet[]
+  sharedGoalDefinitions SharedGoalDefinition[]
+
+  @@index([status, startsAt, endsAt])
+  @@map("cycles")
+}
+
+model CheckinWindow {
+  id                 String              @id @default(uuid()) @db.Uuid
+  cycleId            String              @db.Uuid
+  type               CheckinWindowType
+  name               String
+  status             CheckinWindowStatus @default(NOT_OPEN)
+  sequence           Int
+  opensAt            DateTime
+  closesAt           DateTime
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
+  version            Int                 @default(1)
+  createdById        String?             @db.Uuid
+  updatedById        String?             @db.Uuid
+  achievementUpdates AchievementUpdate[]
+  checkinComments    CheckinComment[]
+  cycle              Cycle               @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  escalationEvents   EscalationEvent[]
+
+  @@unique([cycleId, type])
+  @@unique([cycleId, sequence])
+  @@index([status, opensAt, closesAt])
+  @@map("checkin_windows")
+}
+
+model GoalSheet {
+  id               String            @id @default(uuid()) @db.Uuid
+  cycleId          String            @db.Uuid
+  employeeId       String            @db.Uuid
+  managerId        String            @db.Uuid
+  orgUnitId        String?           @db.Uuid
+  status           GoalSheetStatus   @default(DRAFT)
+  submittedAt      DateTime?
+  returnedAt       DateTime?
+  approvedAt       DateTime?
+  approvedById     String?           @db.Uuid
+  lockedAt         DateTime?
+  unlockedAt       DateTime?
+  archivedAt       DateTime?
+  lockReason       String?
+  unlockReason     String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+  version          Int               @default(1)
+  createdById      String?           @db.Uuid
+  updatedById      String?           @db.Uuid
+  approvalEvents   ApprovalEvent[]
+  checkinComments  CheckinComment[]
+  escalationEvents EscalationEvent[]
+  approvedBy       User?             @relation("GoalSheetApprovedBy", fields: [approvedById], references: [id])
+  cycle            Cycle             @relation(fields: [cycleId], references: [id])
+  employee         User              @relation("GoalSheetEmployee", fields: [employeeId], references: [id])
+  manager          User              @relation("GoalSheetManager", fields: [managerId], references: [id])
+  orgUnit          OrgUnit?          @relation(fields: [orgUnitId], references: [id])
+  goals            Goal[]
+  sharedGoalLinks  SharedGoalLink[]
+
+  @@unique([cycleId, employeeId])
+  @@index([managerId, status])
+  @@index([employeeId, status])
+  @@index([approvedById])
+  @@index([orgUnitId, status])
+  @@index([cycleId, status])
+  @@map("goal_sheets")
+}
+
+model Goal {
+  id                   String                @id @default(uuid()) @db.Uuid
+  goalSheetId          String                @db.Uuid
+  source               GoalSource            @default(INDIVIDUAL)
+  status               GoalStatus            @default(ACTIVE)
+  sortOrder            Int
+  thrustArea           String?
+  title                String?
+  description          String?
+  uomType              UomType?
+  direction            MeasurementDirection?
+  targetNumeric        Decimal?              @db.Decimal(14, 2)
+  targetDate           DateTime?
+  weightage            Decimal               @db.Decimal(5, 2)
+  lockedAt             DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  deletedAt            DateTime?
+  version              Int                   @default(1)
+  createdById          String?               @db.Uuid
+  updatedById          String?               @db.Uuid
+  achievementUpdates   AchievementUpdate[]
+  goalSheet            GoalSheet             @relation(fields: [goalSheetId], references: [id], onDelete: Cascade)
+  primaryForSharedGoal SharedGoalDefinition? @relation("SharedGoalPrimaryOwnerGoal")
+  sharedGoalLink       SharedGoalLink?       @relation("SharedGoalRecipientGoal")
+
+  @@unique([goalSheetId, sortOrder])
+  @@index([goalSheetId, status])
+  @@index([source, status])
+  @@index([thrustArea])
+  @@map("goals")
+}
+
+model SharedGoalDefinition {
+  id                 String               @id @default(uuid()) @db.Uuid
+  cycleId            String               @db.Uuid
+  orgUnitId          String?              @db.Uuid
+  status             SharedGoalStatus     @default(DRAFT)
+  title              String
+  description        String?
+  thrustArea         String?
+  uomType            UomType
+  direction          MeasurementDirection
+  targetNumeric      Decimal?             @db.Decimal(14, 2)
+  targetDate         DateTime?
+  primaryOwnerId     String?              @db.Uuid
+  primaryOwnerGoalId String?              @unique @db.Uuid
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  deletedAt          DateTime?
+  version            Int                  @default(1)
+  createdById        String?              @db.Uuid
+  updatedById        String?              @db.Uuid
+  cycle              Cycle                @relation(fields: [cycleId], references: [id])
+  orgUnit            OrgUnit?             @relation(fields: [orgUnitId], references: [id])
+  primaryOwnerGoal   Goal?                @relation("SharedGoalPrimaryOwnerGoal", fields: [primaryOwnerGoalId], references: [id])
+  primaryOwner       User?                @relation("SharedGoalPrimaryOwner", fields: [primaryOwnerId], references: [id])
+  links              SharedGoalLink[]
+
+  @@index([cycleId, status])
+  @@index([orgUnitId, status])
+  @@index([primaryOwnerId])
+  @@map("shared_goal_definitions")
+}
+
+model SharedGoalLink {
+  id                     String               @id @default(uuid()) @db.Uuid
+  sharedGoalDefinitionId String               @db.Uuid
+  recipientGoalId        String               @unique @db.Uuid
+  recipientUserId        String               @db.Uuid
+  goalSheetId            String               @db.Uuid
+  assignedAt             DateTime             @default(now())
+  acceptedAt             DateTime?
+  isPrimaryOwnerLink     Boolean              @default(false)
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  deletedAt              DateTime?
+  version                Int                  @default(1)
+  createdById            String?              @db.Uuid
+  updatedById            String?              @db.Uuid
+  goalSheet              GoalSheet            @relation(fields: [goalSheetId], references: [id], onDelete: Cascade)
+  recipientGoal          Goal                 @relation("SharedGoalRecipientGoal", fields: [recipientGoalId], references: [id], onDelete: Cascade)
+  recipientUser          User                 @relation("SharedGoalRecipient", fields: [recipientUserId], references: [id])
+  sharedGoalDefinition   SharedGoalDefinition @relation(fields: [sharedGoalDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([sharedGoalDefinitionId, recipientUserId])
+  @@index([goalSheetId])
+  @@index([recipientUserId])
+  @@map("shared_goal_links")
+}
+
+model ApprovalEvent {
+  id          String           @id @default(uuid()) @db.Uuid
+  goalSheetId String           @db.Uuid
+  actorId     String           @db.Uuid
+  action      ApprovalAction
+  fromStatus  GoalSheetStatus?
+  toStatus    GoalSheetStatus?
+  comment     String?
+  payload     Json?
+  createdAt   DateTime         @default(now())
+  actor       User             @relation("ApprovalActor", fields: [actorId], references: [id])
+  goalSheet   GoalSheet        @relation(fields: [goalSheetId], references: [id], onDelete: Cascade)
+
+  @@index([goalSheetId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@map("approval_events")
+}
+
+model AchievementUpdate {
+  id              String            @id @default(uuid()) @db.Uuid
+  goalId          String            @db.Uuid
+  checkinWindowId String            @db.Uuid
+  enteredById     String            @db.Uuid
+  actualNumeric   Decimal?          @db.Decimal(14, 2)
+  actualDate      DateTime?
+  status          AchievementStatus @default(NOT_STARTED)
+  progressScore   Decimal?          @db.Decimal(7, 2)
+  employeeComment String?
+  submittedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deletedAt       DateTime?
+  version         Int               @default(1)
+  createdById     String?           @db.Uuid
+  updatedById     String?           @db.Uuid
+  checkinWindow   CheckinWindow     @relation(fields: [checkinWindowId], references: [id])
+  enteredBy       User              @relation("AchievementEnteredBy", fields: [enteredById], references: [id])
+  goal            Goal              @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, checkinWindowId])
+  @@index([checkinWindowId, status])
+  @@index([enteredById, submittedAt])
+  @@map("achievement_updates")
+}
+
+model CheckinComment {
+  id              String        @id @default(uuid()) @db.Uuid
+  goalSheetId     String        @db.Uuid
+  checkinWindowId String        @db.Uuid
+  managerId       String        @db.Uuid
+  comment         String
+  discussionDate  DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+  version         Int           @default(1)
+  createdById     String?       @db.Uuid
+  updatedById     String?       @db.Uuid
+  checkinWindow   CheckinWindow @relation(fields: [checkinWindowId], references: [id])
+  goalSheet       GoalSheet     @relation(fields: [goalSheetId], references: [id], onDelete: Cascade)
+  manager         User          @relation("CheckinManager", fields: [managerId], references: [id])
+
+  @@unique([goalSheetId, checkinWindowId, managerId])
+  @@index([managerId, discussionDate])
+  @@map("checkin_comments")
+}
+
+model AuditLog {
+  id         String          @id @default(uuid()) @db.Uuid
+  entityType AuditEntityType
+  entityId   String          @db.Uuid
+  action     AuditAction
+  actorId    String?         @db.Uuid
+  actorRole  AppRole?
+  before     Json?
+  after      Json?
+  metadata   Json?
+  reason     String?
+  requestId  String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime        @default(now())
+  actor      User?           @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+model EscalationRule {
+  id              String                @id @default(uuid()) @db.Uuid
+  cycleId         String?               @db.Uuid
+  name            String
+  description     String?
+  triggerType     EscalationTriggerType
+  isActive        Boolean               @default(true)
+  thresholdDays   Int
+  repeatEveryDays Int?
+  maxLevel        EscalationLevel       @default(HR)
+  config          Json?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  deletedAt       DateTime?
+  version         Int                   @default(1)
+  createdById     String?               @db.Uuid
+  updatedById     String?               @db.Uuid
+  events          EscalationEvent[]
+  cycle           Cycle?                @relation(fields: [cycleId], references: [id])
+
+  @@index([cycleId, triggerType, isActive])
+  @@index([isActive])
+  @@map("escalation_rules")
+}
+
+model EscalationEvent {
+  id              String           @id @default(uuid()) @db.Uuid
+  ruleId          String?          @db.Uuid
+  cycleId         String           @db.Uuid
+  goalSheetId     String?          @db.Uuid
+  checkinWindowId String?          @db.Uuid
+  employeeId      String           @db.Uuid
+  managerId       String?          @db.Uuid
+  currentLevel    EscalationLevel
+  status          EscalationStatus @default(OPEN)
+  triggeredAt     DateTime         @default(now())
+  dueAt           DateTime
+  acknowledgedAt  DateTime?
+  resolvedAt      DateTime?
+  resolvedById    String?          @db.Uuid
+  resolutionNote  String?
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  version         Int              @default(1)
+  createdById     String?          @db.Uuid
+  updatedById     String?          @db.Uuid
+  checkinWindow   CheckinWindow?   @relation(fields: [checkinWindowId], references: [id])
+  cycle           Cycle            @relation(fields: [cycleId], references: [id])
+  employee        User             @relation("EscalationEmployee", fields: [employeeId], references: [id])
+  goalSheet       GoalSheet?       @relation(fields: [goalSheetId], references: [id])
+  manager         User?            @relation("EscalationManager", fields: [managerId], references: [id])
+  resolvedBy      User?            @relation("EscalationResolvedBy", fields: [resolvedById], references: [id])
+  rule            EscalationRule?  @relation(fields: [ruleId], references: [id])
+
+  @@index([status, dueAt])
+  @@index([cycleId, status])
+  @@index([employeeId, status])
+  @@index([managerId, status])
+  @@index([ruleId, triggeredAt])
+  @@map("escalation_events")
+}
+
+model Notification {
+  id          String             @id @default(uuid()) @db.Uuid
+  recipientId String             @db.Uuid
+  actorId     String?            @db.Uuid
+  type        NotificationType
+  status      NotificationStatus @default(UNREAD)
+  title       String
+  body        String
+  linkHref    String?
+  entityType  AuditEntityType?
+  entityId    String?            @db.Uuid
+  metadata    Json?
+  readAt      DateTime?
+  archivedAt  DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  version     Int                @default(1)
+  actor       User?              @relation("NotificationActor", fields: [actorId], references: [id])
+  recipient   User               @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, status, createdAt])
+  @@index([entityType, entityId])
+  @@index([type, createdAt])
+  @@map("notifications")
+}
+
 enum AppRole {
   EMPLOYEE
   MANAGER
@@ -182,515 +660,4 @@ enum NotificationStatus {
   UNREAD
   READ
   ARCHIVED
-}
-
-model User {
-  id               String     @id @default(uuid()) @db.Uuid
-  authProviderId   String?    @unique
-  email            String     @unique
-  employeeCode     String?    @unique
-  fullName         String
-  title            String?
-  status           UserStatus @default(ACTIVE)
-  primaryOrgUnitId String?    @db.Uuid
-  createdById      String?    @db.Uuid
-  updatedById      String?    @db.Uuid
-  primaryOrgUnit   OrgUnit?   @relation("OrgUnitUsers", fields: [primaryOrgUnitId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-  version   Int       @default(1)
-
-  roleAssignments            RoleAssignment[]
-  reportingLinesAsEmployee   ReportingLine[]        @relation("ReportingLineEmployee")
-  reportingLinesAsManager    ReportingLine[]        @relation("ReportingLineManager")
-  goalSheetsAsEmployee       GoalSheet[]            @relation("GoalSheetEmployee")
-  goalSheetsAsManager        GoalSheet[]            @relation("GoalSheetManager")
-  goalSheetsApproved         GoalSheet[]            @relation("GoalSheetApprovedBy")
-  approvalEvents             ApprovalEvent[]        @relation("ApprovalActor")
-  achievementUpdates         AchievementUpdate[]    @relation("AchievementEnteredBy")
-  checkinCommentsAsManager   CheckinComment[]       @relation("CheckinManager")
-  sharedGoalsOwned           SharedGoalDefinition[] @relation("SharedGoalPrimaryOwner")
-  sharedGoalLinksReceived    SharedGoalLink[]       @relation("SharedGoalRecipient")
-  escalationEventsAsEmployee EscalationEvent[]      @relation("EscalationEmployee")
-  escalationEventsAsManager  EscalationEvent[]      @relation("EscalationManager")
-  escalationsResolved        EscalationEvent[]      @relation("EscalationResolvedBy")
-  notificationsReceived      Notification[]         @relation("NotificationRecipient")
-  notificationsTriggered     Notification[]         @relation("NotificationActor")
-  auditLogs                  AuditLog[]             @relation("AuditActor")
-
-  @@index([status])
-  @@index([primaryOrgUnitId])
-  @@index([fullName])
-  @@map("users")
-}
-
-model RoleAssignment {
-  id        String               @id @default(uuid()) @db.Uuid
-  userId    String               @db.Uuid
-  role      AppRole
-  orgUnitId String?              @db.Uuid
-  status    RoleAssignmentStatus @default(ACTIVE)
-  startsAt  DateTime             @default(now())
-  endsAt    DateTime?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  version     Int       @default(1)
-  createdById String?   @db.Uuid
-  updatedById String?   @db.Uuid
-
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orgUnit OrgUnit? @relation("RoleAssignmentOrgUnit", fields: [orgUnitId], references: [id], onDelete: SetNull)
-
-  @@unique([userId, role, orgUnitId])
-  @@index([role, status])
-  @@index([orgUnitId, role])
-  @@map("role_assignments")
-}
-
-model OrgUnit {
-  id       String        @id @default(uuid()) @db.Uuid
-  code     String        @unique
-  name     String
-  type     OrgUnitType
-  status   OrgUnitStatus @default(ACTIVE)
-  parentId String?       @db.Uuid
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  version     Int       @default(1)
-  createdById String?   @db.Uuid
-  updatedById String?   @db.Uuid
-
-  parent                OrgUnit?               @relation("OrgUnitHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
-  children              OrgUnit[]              @relation("OrgUnitHierarchy")
-  members               User[]                 @relation("OrgUnitUsers")
-  roleAssignments       RoleAssignment[]       @relation("RoleAssignmentOrgUnit")
-  reportingLines        ReportingLine[]
-  goalSheets            GoalSheet[]
-  sharedGoalDefinitions SharedGoalDefinition[]
-
-  @@index([parentId])
-  @@index([type, status])
-  @@map("org_units")
-}
-
-model ReportingLine {
-  id            String    @id @default(uuid()) @db.Uuid
-  employeeId    String    @db.Uuid
-  managerId     String    @db.Uuid
-  orgUnitId     String?   @db.Uuid
-  isPrimary     Boolean   @default(true)
-  effectiveFrom DateTime
-  effectiveTo   DateTime?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  version     Int       @default(1)
-  createdById String?   @db.Uuid
-  updatedById String?   @db.Uuid
-
-  employee User     @relation("ReportingLineEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
-  manager  User     @relation("ReportingLineManager", fields: [managerId], references: [id], onDelete: Restrict)
-  orgUnit  OrgUnit? @relation(fields: [orgUnitId], references: [id], onDelete: SetNull)
-
-  @@unique([employeeId, managerId, effectiveFrom])
-  @@index([managerId, isPrimary])
-  @@index([employeeId, effectiveFrom, effectiveTo])
-  @@index([orgUnitId])
-  @@map("reporting_lines")
-}
-
-model Cycle {
-  id       String      @id @default(uuid()) @db.Uuid
-  code     String      @unique
-  name     String
-  status   CycleStatus @default(DRAFT)
-  startsAt DateTime
-  endsAt   DateTime
-  lockedAt DateTime?
-  closedAt DateTime?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  version     Int       @default(1)
-  createdById String?   @db.Uuid
-  updatedById String?   @db.Uuid
-
-  checkinWindows        CheckinWindow[]
-  goalSheets            GoalSheet[]
-  sharedGoalDefinitions SharedGoalDefinition[]
-  escalationRules       EscalationRule[]
-  escalationEvents      EscalationEvent[]
-
-  @@index([status, startsAt, endsAt])
-  @@map("cycles")
-}
-
-model CheckinWindow {
-  id       String              @id @default(uuid()) @db.Uuid
-  cycleId  String              @db.Uuid
-  type     CheckinWindowType
-  name     String
-  status   CheckinWindowStatus @default(NOT_OPEN)
-  sequence Int
-  opensAt  DateTime
-  closesAt DateTime
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  version     Int       @default(1)
-  createdById String?   @db.Uuid
-  updatedById String?   @db.Uuid
-
-  cycle              Cycle               @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  achievementUpdates AchievementUpdate[]
-  checkinComments    CheckinComment[]
-  escalationEvents   EscalationEvent[]
-
-  @@unique([cycleId, type])
-  @@unique([cycleId, sequence])
-  @@index([status, opensAt, closesAt])
-  @@map("checkin_windows")
-}
-
-model GoalSheet {
-  id         String          @id @default(uuid()) @db.Uuid
-  cycleId    String          @db.Uuid
-  employeeId String          @db.Uuid
-  managerId  String          @db.Uuid
-  orgUnitId  String?         @db.Uuid
-  status     GoalSheetStatus @default(DRAFT)
-
-  submittedAt  DateTime?
-  returnedAt   DateTime?
-  approvedAt   DateTime?
-  approvedById String?   @db.Uuid
-  lockedAt     DateTime?
-  unlockedAt   DateTime?
-  archivedAt   DateTime?
-  lockReason   String?
-  unlockReason String?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  version     Int       @default(1)
-  createdById String?   @db.Uuid
-  updatedById String?   @db.Uuid
-
-  cycle            Cycle             @relation(fields: [cycleId], references: [id], onDelete: Restrict)
-  employee         User              @relation("GoalSheetEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
-  manager          User              @relation("GoalSheetManager", fields: [managerId], references: [id], onDelete: Restrict)
-  approvedBy       User?             @relation("GoalSheetApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
-  orgUnit          OrgUnit?          @relation(fields: [orgUnitId], references: [id], onDelete: SetNull)
-  goals            Goal[]
-  approvalEvents   ApprovalEvent[]
-  checkinComments  CheckinComment[]
-  sharedGoalLinks  SharedGoalLink[]
-  escalationEvents EscalationEvent[]
-
-  @@unique([cycleId, employeeId])
-  @@index([managerId, status])
-  @@index([employeeId, status])
-  @@index([approvedById])
-  @@index([orgUnitId, status])
-  @@index([cycleId, status])
-  @@map("goal_sheets")
-}
-
-model Goal {
-  id            String                @id @default(uuid()) @db.Uuid
-  goalSheetId   String                @db.Uuid
-  source        GoalSource            @default(INDIVIDUAL)
-  status        GoalStatus            @default(ACTIVE)
-  sortOrder     Int
-  thrustArea    String?
-  title         String?
-  description   String?
-  uomType       UomType?
-  direction     MeasurementDirection?
-  targetNumeric Decimal?              @db.Decimal(14, 2)
-  targetDate    DateTime?
-  weightage     Decimal               @db.Decimal(5, 2)
-  lockedAt      DateTime?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  version     Int       @default(1)
-  createdById String?   @db.Uuid
-  updatedById String?   @db.Uuid
-
-  goalSheet            GoalSheet             @relation(fields: [goalSheetId], references: [id], onDelete: Cascade)
-  achievementUpdates   AchievementUpdate[]
-  sharedGoalLink       SharedGoalLink?       @relation("SharedGoalRecipientGoal")
-  primaryForSharedGoal SharedGoalDefinition? @relation("SharedGoalPrimaryOwnerGoal")
-
-  @@unique([goalSheetId, sortOrder])
-  @@index([goalSheetId, status])
-  @@index([source, status])
-  @@index([thrustArea])
-  @@map("goals")
-}
-
-model SharedGoalDefinition {
-  id                 String               @id @default(uuid()) @db.Uuid
-  cycleId            String               @db.Uuid
-  orgUnitId          String?              @db.Uuid
-  status             SharedGoalStatus     @default(DRAFT)
-  title              String
-  description        String?
-  thrustArea         String?
-  uomType            UomType
-  direction          MeasurementDirection
-  targetNumeric      Decimal?             @db.Decimal(14, 2)
-  targetDate         DateTime?
-  primaryOwnerId     String?              @db.Uuid
-  primaryOwnerGoalId String?              @unique @db.Uuid
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  version     Int       @default(1)
-  createdById String?   @db.Uuid
-  updatedById String?   @db.Uuid
-
-  cycle            Cycle            @relation(fields: [cycleId], references: [id], onDelete: Restrict)
-  orgUnit          OrgUnit?         @relation(fields: [orgUnitId], references: [id], onDelete: SetNull)
-  primaryOwner     User?            @relation("SharedGoalPrimaryOwner", fields: [primaryOwnerId], references: [id], onDelete: SetNull)
-  primaryOwnerGoal Goal?            @relation("SharedGoalPrimaryOwnerGoal", fields: [primaryOwnerGoalId], references: [id], onDelete: SetNull)
-  links            SharedGoalLink[]
-
-  @@index([cycleId, status])
-  @@index([orgUnitId, status])
-  @@index([primaryOwnerId])
-  @@map("shared_goal_definitions")
-}
-
-model SharedGoalLink {
-  id                     String    @id @default(uuid()) @db.Uuid
-  sharedGoalDefinitionId String    @db.Uuid
-  recipientGoalId        String    @unique @db.Uuid
-  recipientUserId        String    @db.Uuid
-  goalSheetId            String    @db.Uuid
-  assignedAt             DateTime  @default(now())
-  acceptedAt             DateTime?
-  isPrimaryOwnerLink     Boolean   @default(false)
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  version     Int       @default(1)
-  createdById String?   @db.Uuid
-  updatedById String?   @db.Uuid
-
-  sharedGoalDefinition SharedGoalDefinition @relation(fields: [sharedGoalDefinitionId], references: [id], onDelete: Cascade)
-  recipientGoal        Goal                 @relation("SharedGoalRecipientGoal", fields: [recipientGoalId], references: [id], onDelete: Cascade)
-  recipientUser        User                 @relation("SharedGoalRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
-  goalSheet            GoalSheet            @relation(fields: [goalSheetId], references: [id], onDelete: Cascade)
-
-  @@unique([sharedGoalDefinitionId, recipientUserId])
-  @@index([goalSheetId])
-  @@index([recipientUserId])
-  @@map("shared_goal_links")
-}
-
-model ApprovalEvent {
-  id          String           @id @default(uuid()) @db.Uuid
-  goalSheetId String           @db.Uuid
-  actorId     String           @db.Uuid
-  action      ApprovalAction
-  fromStatus  GoalSheetStatus?
-  toStatus    GoalSheetStatus?
-  comment     String?
-  payload     Json?
-  createdAt   DateTime         @default(now())
-
-  goalSheet GoalSheet @relation(fields: [goalSheetId], references: [id], onDelete: Cascade)
-  actor     User      @relation("ApprovalActor", fields: [actorId], references: [id], onDelete: Restrict)
-
-  @@index([goalSheetId, createdAt])
-  @@index([actorId, createdAt])
-  @@index([action, createdAt])
-  @@map("approval_events")
-}
-
-model AchievementUpdate {
-  id              String            @id @default(uuid()) @db.Uuid
-  goalId          String            @db.Uuid
-  checkinWindowId String            @db.Uuid
-  enteredById     String            @db.Uuid
-  actualNumeric   Decimal?          @db.Decimal(14, 2)
-  actualDate      DateTime?
-  status          AchievementStatus @default(NOT_STARTED)
-  progressScore   Decimal?          @db.Decimal(7, 2)
-  employeeComment String?
-  submittedAt     DateTime?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  version     Int       @default(1)
-  createdById String?   @db.Uuid
-  updatedById String?   @db.Uuid
-
-  goal          Goal          @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  checkinWindow CheckinWindow @relation(fields: [checkinWindowId], references: [id], onDelete: Restrict)
-  enteredBy     User          @relation("AchievementEnteredBy", fields: [enteredById], references: [id], onDelete: Restrict)
-
-  @@unique([goalId, checkinWindowId])
-  @@index([checkinWindowId, status])
-  @@index([enteredById, submittedAt])
-  @@map("achievement_updates")
-}
-
-model CheckinComment {
-  id              String   @id @default(uuid()) @db.Uuid
-  goalSheetId     String   @db.Uuid
-  checkinWindowId String   @db.Uuid
-  managerId       String   @db.Uuid
-  comment         String
-  discussionDate  DateTime @default(now())
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  version     Int       @default(1)
-  createdById String?   @db.Uuid
-  updatedById String?   @db.Uuid
-
-  goalSheet     GoalSheet     @relation(fields: [goalSheetId], references: [id], onDelete: Cascade)
-  checkinWindow CheckinWindow @relation(fields: [checkinWindowId], references: [id], onDelete: Restrict)
-  manager       User          @relation("CheckinManager", fields: [managerId], references: [id], onDelete: Restrict)
-
-  @@unique([goalSheetId, checkinWindowId, managerId])
-  @@index([managerId, discussionDate])
-  @@map("checkin_comments")
-}
-
-model AuditLog {
-  id         String          @id @default(uuid()) @db.Uuid
-  entityType AuditEntityType
-  entityId   String          @db.Uuid
-  action     AuditAction
-  actorId    String?         @db.Uuid
-  actorRole  AppRole?
-  before     Json?
-  after      Json?
-  metadata   Json?
-  reason     String?
-  requestId  String?
-  ipAddress  String?
-  userAgent  String?
-  createdAt  DateTime        @default(now())
-
-  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
-
-  @@index([entityType, entityId, createdAt])
-  @@index([actorId, createdAt])
-  @@index([action, createdAt])
-  @@map("audit_logs")
-}
-
-model EscalationRule {
-  id              String                @id @default(uuid()) @db.Uuid
-  cycleId         String?               @db.Uuid
-  name            String
-  description     String?
-  triggerType     EscalationTriggerType
-  isActive        Boolean               @default(true)
-  thresholdDays   Int
-  repeatEveryDays Int?
-  maxLevel        EscalationLevel       @default(HR)
-  config          Json?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  version     Int       @default(1)
-  createdById String?   @db.Uuid
-  updatedById String?   @db.Uuid
-
-  cycle  Cycle?            @relation(fields: [cycleId], references: [id], onDelete: SetNull)
-  events EscalationEvent[]
-
-  @@index([cycleId, triggerType, isActive])
-  @@index([isActive])
-  @@map("escalation_rules")
-}
-
-model EscalationEvent {
-  id              String           @id @default(uuid()) @db.Uuid
-  ruleId          String?          @db.Uuid
-  cycleId         String           @db.Uuid
-  goalSheetId     String?          @db.Uuid
-  checkinWindowId String?          @db.Uuid
-  employeeId      String           @db.Uuid
-  managerId       String?          @db.Uuid
-  currentLevel    EscalationLevel
-  status          EscalationStatus @default(OPEN)
-  triggeredAt     DateTime         @default(now())
-  dueAt           DateTime
-  acknowledgedAt  DateTime?
-  resolvedAt      DateTime?
-  resolvedById    String?          @db.Uuid
-  resolutionNote  String?
-  metadata        Json?
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  version     Int      @default(1)
-  createdById String?  @db.Uuid
-  updatedById String?  @db.Uuid
-
-  rule          EscalationRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
-  cycle         Cycle           @relation(fields: [cycleId], references: [id], onDelete: Restrict)
-  goalSheet     GoalSheet?      @relation(fields: [goalSheetId], references: [id], onDelete: SetNull)
-  checkinWindow CheckinWindow?  @relation(fields: [checkinWindowId], references: [id], onDelete: SetNull)
-  employee      User            @relation("EscalationEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
-  manager       User?           @relation("EscalationManager", fields: [managerId], references: [id], onDelete: SetNull)
-  resolvedBy    User?           @relation("EscalationResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
-
-  @@index([status, dueAt])
-  @@index([cycleId, status])
-  @@index([employeeId, status])
-  @@index([managerId, status])
-  @@index([ruleId, triggeredAt])
-  @@map("escalation_events")
-}
-
-model Notification {
-  id          String             @id @default(uuid()) @db.Uuid
-  recipientId String             @db.Uuid
-  actorId     String?            @db.Uuid
-  type        NotificationType
-  status      NotificationStatus @default(UNREAD)
-  title       String
-  body        String
-  linkHref    String?
-  entityType  AuditEntityType?
-  entityId    String?            @db.Uuid
-  metadata    Json?
-  readAt      DateTime?
-  archivedAt  DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  version   Int      @default(1)
-
-  recipient User  @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  actor     User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
-
-  @@index([recipientId, status, createdAt])
-  @@index([entityType, entityId])
-  @@index([type, createdAt])
-  @@map("notifications")
 }
