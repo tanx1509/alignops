@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation";
+import { redirectToHomeForCurrentUser } from "@/lib/auth/session";
 
-export default function HomePage() {
-  redirect("/employee");
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  await redirectToHomeForCurrentUser();
 }

@@ -31,15 +31,18 @@ export function withErrorHandling<
         name: err instanceof Error ? err.name : 'Unknown',
         message: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : undefined,
-        url: request.url,
         method: request.method,
+        url: request.url,
       })
 
       return Response.json(
         {
           error: {
             code: 'INTERNAL_ERROR',
-            message: 'An unexpected error occurred',
+            message:
+              err instanceof Error
+                ? err.message
+                : String(err),
           },
         },
         { status: 500 },

@@ -7,8 +7,14 @@ import {
 
 export interface Session {
   userId: string
-  role: AppRole
+  roles: AppRole[]
   email: string
+}
+
+const roleRank: Record<AppRole, number> = {
+  [AppRole.EMPLOYEE]: 1,
+  [AppRole.MANAGER]: 2,
+  [AppRole.ADMIN]: 3,
 }
 
 export function assertAuthenticated(
@@ -23,9 +29,15 @@ export function assertRole(
   session: Session,
   ...allowedRoles: AppRole[]
 ): void {
-  if (!allowedRoles.includes(session.role)) {
+  const allowed = allowedRoles.some((allowedRole) =>
+    session.roles.some(
+      (sessionRole) => roleRank[sessionRole] >= roleRank[allowedRole],
+    ),
+  )
+
+  if (!allowed) {
     throw new ForbiddenError(
-      `Role '${session.role}' is not permitted to perform this action`,
+      'Your role is not permitted to perform this action',
     )
   }
 }

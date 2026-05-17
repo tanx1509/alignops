@@ -124,7 +124,6 @@ src/
     reporting/
     shared-goals/
   types/
-  validation/
 prisma/
   schema.prisma
 middleware.ts
@@ -183,13 +182,9 @@ src/lib/supabase/middleware.ts
 
 ## Prisma Foundation
 
-The initial schema includes only identity/profile primitives:
-
-- `UserProfile`
-- `AppRole`
-- `UserStatus`
-
-Goal sheets, approvals, check-ins, audit logs, shared goals, reports, and escalations should be added in their respective module phase.
+The schema models users, role assignments, org units, reporting lines, cycles,
+goal sheets, goals, approvals, shared goals, check-ins, audit logs,
+notifications, and escalations.
 
 ## Verification
 

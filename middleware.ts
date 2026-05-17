@@ -1,33 +1,65 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 import {
   getDefaultRoleHome,
-  hasRole,
+  getUserRoles,
+  hasRoleFromRoles,
   requiredRoleForPath,
 } from "@/lib/auth/roles";
 import { updateSession } from "@/lib/supabase/middleware";
 
+function redirectWithSessionCookies(
+  request: NextRequest,
+  response: NextResponse,
+  pathname: string,
+) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
+
+  const redirectResponse = NextResponse.redirect(url);
+  response.cookies.getAll().forEach((cookie) => {
+    redirectResponse.cookies.set(cookie);
+  });
+
+  return redirectResponse;
+}
+
 export async function middleware(request: NextRequest) {
   const { response, user } = await updateSession(request);
-  const { pathname, search } = request.nextUrl;
+  const { pathname } = request.nextUrl;
   const requiredRole = requiredRoleForPath(pathname);
 
   if (pathname === "/login" && user) {
-    return NextResponse.redirect(new URL(getDefaultRoleHome(user), request.url));
+    return redirectWithSessionCookies(
+      request,
+      response,
+      getDefaultRoleHome(user),
+    );
   }
 
-  if (!requiredRole) {
-    return response;
+  if (requiredRole && !user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("next", pathname);
+
+    const redirectResponse = NextResponse.redirect(url);
+    response.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie);
+    });
+
+    return redirectResponse;
   }
 
-  if (!user) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", `${pathname}${search}`);
-    return NextResponse.redirect(loginUrl);
-  }
+  const metadataRoles = getUserRoles(user, { fallbackToEmployee: false });
 
-  if (!hasRole(user, requiredRole)) {
-    return NextResponse.redirect(new URL("/unauthorized", request.url));
+  if (
+    requiredRole &&
+    metadataRoles.length > 0 &&
+    !hasRoleFromRoles(metadataRoles, requiredRole)
+  ) {
+    return redirectWithSessionCookies(request, response, "/unauthorized");
   }
 
   return response;

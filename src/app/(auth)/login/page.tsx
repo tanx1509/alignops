@@ -7,7 +7,13 @@ import { ShieldCheck } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
 
-export default function LoginPage() {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams?: {
+    next?: string
+  }
+}) {
   const router = useRouter()
 
   const [email, setEmail] = useState('')
@@ -36,7 +42,12 @@ export default function LoginPage() {
 
     setLoading(false)
 
-    router.push('/employee')
+    const nextPath =
+      searchParams?.next && searchParams.next.startsWith('/')
+        ? searchParams.next
+        : '/'
+
+    router.replace(nextPath)
     router.refresh()
   }
 

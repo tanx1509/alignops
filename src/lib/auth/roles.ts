@@ -2,10 +2,6 @@ import type { User } from "@supabase/supabase-js";
 
 import type { AppRole } from "@/types/auth";
 
-function isAppRole(role: AppRole | null): role is AppRole {
-  return role !== null;
-}
-
 const roleRank: Record<AppRole, number> = {
   employee: 1,
   manager: 2,
@@ -17,6 +13,10 @@ export const roleHome: Record<AppRole, string> = {
   manager: "/manager",
   admin: "/admin",
 };
+
+function isAppRole(role: AppRole | null): role is AppRole {
+  return role !== null;
+}
 
 export function normalizeRole(value: unknown): AppRole | null {
   if (typeof value !== "string") {
@@ -32,7 +32,12 @@ export function normalizeRole(value: unknown): AppRole | null {
   return null;
 }
 
-export function getUserRoles(user: User | null): AppRole[] {
+export function getUserRoles(
+  user: User | null,
+  options: { fallbackToEmployee?: boolean } = {},
+): AppRole[] {
+  const { fallbackToEmployee = true } = options;
+
   if (!user) {
     return [];
   }
@@ -46,11 +51,20 @@ export function getUserRoles(user: User | null): AppRole[] {
     ? metadata.roles.map(normalizeRole).filter(isAppRole)
     : [normalizeRole(metadata.role)].filter(isAppRole);
 
-  return roles.length > 0 ? Array.from(new Set(roles)) : ["employee"];
+  if (roles.length > 0) {
+    return Array.from(new Set(roles));
+  }
+
+  return fallbackToEmployee ? ["employee"] : [];
 }
 
 export function hasRole(user: User | null, requiredRole: AppRole): boolean {
   const roles = getUserRoles(user);
+
+  return hasRoleFromRoles(roles, requiredRole);
+}
+
+export function hasRoleFromRoles(roles: AppRole[], requiredRole: AppRole): boolean {
   return roles.some((role) => roleRank[role] >= roleRank[requiredRole]);
 }
 
