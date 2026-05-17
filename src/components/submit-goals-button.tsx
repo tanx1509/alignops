@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { notify } from "@/components/app/toast-hub";
 import { Button } from "@/components/ui/button";
 
 type SubmitResponse = {
@@ -39,10 +40,17 @@ export function SubmitGoalsButton({
         | null;
 
       if (!response.ok) {
-        setError(payload?.error?.message ?? "Unable to submit goals.");
+        const message = payload?.error?.message ?? "Unable to submit goals.";
+        setError(message);
+        notify({ description: message, title: "Submission blocked", type: "error" });
         return;
       }
 
+      notify({
+        description: "Your manager queue has been updated.",
+        title: "Goals submitted",
+        type: "success",
+      });
       router.refresh();
     } finally {
       setIsSubmitting(false);

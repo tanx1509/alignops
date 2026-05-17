@@ -9,7 +9,10 @@ const roleLabel: Record<AppRole, string> = {
 
 export function RoleBadge({ role }: { role: AppRole }) {
   return (
-    <Badge variant={role === "admin" ? "default" : "secondary"}>
+    <Badge
+      className="border bg-background/80 px-2.5 py-1 text-[11px] font-semibold uppercase"
+      variant={role === "admin" ? "default" : "secondary"}
+    >
       {roleLabel[role]}
     </Badge>
   );
