@@ -46,7 +46,7 @@
 
 Watch the full AlignOps walkthrough here:
 
-[![Watch the Demo](https://cdn.loom.com/sessions/thumbnails/605061dd2d28450781752f5d2b41a5e1-with-play.gif)](https://www.loom.com/share/605061dd2d28450781752f5d2b41a5e1)
+[![Watch the Demo](https://www.loom.com/share/605061dd2d28450781752f5d2b41a5e1)
 
 ### Demo Credentials
 
