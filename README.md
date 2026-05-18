@@ -38,7 +38,7 @@
 
 ### Production Deployment
 
-[https://alignops-five.vercel.app/login]
+[https://alignops-five.vercel.app/]
 
 ### Demo Credentials
 
