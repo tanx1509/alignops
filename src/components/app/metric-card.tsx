@@ -29,8 +29,8 @@ export function MetricCard({
         : Minus;
 
   return (
-    <div className="premium-card overflow-hidden p-4">
-      <div className="flex items-start justify-between gap-4">
+    <div className="premium-card overflow-hidden p-5">
+      <div className="flex items-start justify-between gap-5">
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
           <div className="metric-value">{value}</div>

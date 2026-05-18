@@ -8,6 +8,7 @@ import {
   UnlockKeyhole,
 } from 'lucide-react'
 
+import Link from 'next/link'
 import { AdminUnlockButton } from '@/components/admin-unlock-button'
 import {
   QualityMeter,
@@ -139,7 +140,12 @@ export default async function AdminGovernancePage() {
           <div className="space-y-5">
             <Card className="premium-card">
               <CardHeader>
-                <CardTitle className="text-base">Policy readiness</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Policy readiness</CardTitle>
+                  <Link href="/admin/reports" className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+                    Export Governance Report &rarr;
+                  </Link>
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <QualityMeter

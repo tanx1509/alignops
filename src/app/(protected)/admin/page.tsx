@@ -1,5 +1,7 @@
 import { GoalSheetStatus } from '@prisma/client'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   AlertTriangle,
   Building2,
@@ -16,11 +18,18 @@ import {
 
 import {
   BarList,
-  DonutGauge,
-  HeatMapGrid,
   SegmentedBar,
-  StatusMatrix,
 } from '@/components/app/charts'
+
+const HeatMapGrid = dynamic(() => import('@/components/app/charts').then(mod => mod.HeatMapGrid), {
+  loading: () => <Skeleton className="h-[200px] w-full rounded-xl" />,
+})
+const StatusMatrix = dynamic(() => import('@/components/app/charts').then(mod => mod.StatusMatrix), {
+  loading: () => <Skeleton className="h-[200px] w-full rounded-xl" />,
+})
+const DonutGauge = dynamic(() => import('@/components/app/charts').then(mod => mod.DonutGauge), {
+  loading: () => <Skeleton className="h-40 w-full rounded-xl" />,
+})
 import {
   QualityMeter,
   SignalList,
@@ -274,10 +283,15 @@ export default async function AdminDashboardPage() {
         <section className="grid gap-5 xl:grid-cols-[1fr_24rem]">
           <Card className="premium-card">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Gauge className="h-4 w-4" />
-                Governance health score
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Gauge className="h-4 w-4" />
+                  Governance health score
+                </CardTitle>
+                <Link href="/admin/governance" className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+                  View Governance Flow &rarr;
+                </Link>
+              </div>
             </CardHeader>
             <CardContent className="grid gap-5 lg:grid-cols-[14rem_1fr]">
               <DonutGauge label="Org health" value={governanceHealth} />
@@ -442,7 +456,12 @@ export default async function AdminDashboardPage() {
         <section className="grid gap-5 xl:grid-cols-[1fr_24rem]">
           <Card className="premium-card">
             <CardHeader>
-              <CardTitle className="text-base">Department governance heatmap</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Department governance heatmap</CardTitle>
+                <Link href="/admin/reports" className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+                  View Governance Report &rarr;
+                </Link>
+              </div>
               <p className="text-sm text-muted-foreground">
                 Columns: health, submitted, locked, risk goals, overdue check-ins.
               </p>
@@ -537,7 +556,12 @@ export default async function AdminDashboardPage() {
 
           <Card className="premium-card">
             <CardHeader>
-              <CardTitle className="text-base">Audit pulse</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Audit pulse</CardTitle>
+                <Link href="/admin/audit" className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+                  Open Audit Timeline &rarr;
+                </Link>
+              </div>
             </CardHeader>
             <CardContent>
               <Timeline

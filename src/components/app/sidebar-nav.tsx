@@ -22,7 +22,10 @@ export function SidebarNav({
       <nav className="flex gap-2 overflow-x-auto border-b bg-background/90 px-4 py-2 backdrop-blur lg:hidden">
         {items.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isRoot = item.href === "/admin" || item.href === "/manager" || item.href === "/employee";
+          const isActive = isRoot
+            ? pathname === item.href
+            : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           return (
             <Link
@@ -46,7 +49,10 @@ export function SidebarNav({
     <nav className="flex-1 space-y-1 px-3 py-4">
       {items.map((item) => {
         const Icon = item.icon;
-        const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const isRoot = item.href === "/admin" || item.href === "/manager" || item.href === "/employee";
+        const isActive = isRoot
+          ? pathname === item.href
+          : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
         return (
           <Link
