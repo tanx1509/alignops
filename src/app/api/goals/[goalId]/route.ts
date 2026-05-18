@@ -4,16 +4,16 @@ import { NextRequest } from 'next/server'
 
 import { withErrorHandling } from '@/lib/api-handler'
 import { getCurrentUser } from '@/lib/auth/session'
-import { submitSheet } from '@/lib/dal/sheets.dal'
+import { updateEmployeeGoal } from '@/lib/dal/goals.dal'
 import { UnauthorizedError } from '@/lib/errors/domain.errors'
 import { assertAuthenticated, assertRole } from '@/lib/guards/rbac'
-import { SubmitSheetSchema } from '@/lib/validations/sheet.schema'
+import { UpdateGoalSchema } from '@/lib/validations/goal.schema'
 
-type SubmitRouteParams = {
-  sheetId: string
+type GoalRouteParams = {
+  goalId: string
 }
 
-export const POST = withErrorHandling<SubmitRouteParams>(
+export const PATCH = withErrorHandling<GoalRouteParams>(
   async (request: NextRequest, { params }) => {
     const user = await getCurrentUser()
 
@@ -46,7 +46,7 @@ export const POST = withErrorHandling<SubmitRouteParams>(
       )
     }
 
-    const parsed = SubmitSheetSchema.safeParse(body)
+    const parsed = UpdateGoalSchema.safeParse(body)
 
     if (!parsed.success) {
       return Response.json(
@@ -61,30 +61,28 @@ export const POST = withErrorHandling<SubmitRouteParams>(
       )
     }
 
-    const result = await submitSheet({
-      actorRole: user.primaryDbRole,
-      clientUpdatedAt: new Date(parsed.data.updatedAt),
+    const goal = await updateEmployeeGoal({
+      description: parsed.data.description,
       employeeId: session.userId,
-      sheetId: params.sheetId,
+      goalId: params.goalId,
+      targetDate: parsed.data.targetDate,
+      targetNumeric: parsed.data.targetNumeric,
+      thrustArea: parsed.data.thrustArea,
+      title: parsed.data.title,
+      weightage: parsed.data.weightage,
     })
 
     revalidatePath('/employee')
     revalidatePath('/manager')
     revalidatePath('/manager/insights')
     revalidatePath('/admin')
-    revalidatePath('/admin/governance')
     revalidatePath('/admin/audit')
 
-    return Response.json(
-      {
-        data: {
-          sheetId: result.id,
-          status: result.status,
-          submittedAt: result.submittedAt?.toISOString() ?? null,
-          updatedAt: result.updatedAt.toISOString(),
-        },
+    return Response.json({
+      data: {
+        goalId: goal.id,
+        updatedAt: goal.updatedAt.toISOString(),
       },
-      { status: 200 },
-    )
+    })
   },
 )

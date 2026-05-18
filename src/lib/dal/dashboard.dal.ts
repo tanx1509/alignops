@@ -216,7 +216,14 @@ export async function getAdminControlTower() {
         cycle: {
           select: {
             code: true,
+            checkinWindows: {
+              orderBy: {
+                sequence: 'asc',
+              },
+            },
+            endsAt: true,
             name: true,
+            startsAt: true,
             status: true,
           },
         },
@@ -227,6 +234,21 @@ export async function getAdminControlTower() {
           },
         },
         goals: {
+          include: {
+            achievementUpdates: {
+              include: {
+                checkinWindow: {
+                  select: {
+                    name: true,
+                    sequence: true,
+                  },
+                },
+              },
+              orderBy: {
+                submittedAt: 'desc',
+              },
+            },
+          },
           where: {
             deletedAt: null,
           },

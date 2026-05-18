@@ -1,6 +1,8 @@
 import {
+  AchievementStatus,
   AppRole,
   ApprovalAction,
+  AuditAction,
   AuditEntityType,
   CheckinWindowStatus,
   CheckinWindowType,
@@ -538,6 +540,7 @@ async function main() {
   for (const [index, employee] of employeeUsers.entries()) {
     const managerId = managersByOrgUnit.get(employee.primaryOrgUnitId);
     const finalStatus = sheetFinalStatus(index);
+    const employeeNumber = Number(employee.employeeCode.slice(-4));
     const sheetId = id(5000 + Number(employee.employeeCode.slice(-4)));
     const sharedDefinition = sharedGoals.find((goal) => goal.orgUnitId === employee.primaryOrgUnitId);
 
@@ -573,6 +576,13 @@ async function main() {
       update: {
         source: GoalSource.SHARED,
         status: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? GoalStatus.LOCKED : GoalStatus.ACTIVE,
+        title: sharedDefinition.title,
+        description: sharedDefinition.description,
+        thrustArea: sharedDefinition.thrustArea,
+        uomType: sharedDefinition.uomType,
+        direction: sharedDefinition.direction,
+        targetNumeric: sharedDefinition.targetNumeric,
+        targetDate: sharedDefinition.targetDate,
         lockedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-20") : null,
         weightage: "30.00",
         updatedById: employee.id,
@@ -583,6 +593,13 @@ async function main() {
         source: GoalSource.SHARED,
         status: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? GoalStatus.LOCKED : GoalStatus.ACTIVE,
         sortOrder: 1,
+        title: sharedDefinition.title,
+        description: sharedDefinition.description,
+        thrustArea: sharedDefinition.thrustArea,
+        uomType: sharedDefinition.uomType,
+        direction: sharedDefinition.direction,
+        targetNumeric: sharedDefinition.targetNumeric,
+        targetDate: sharedDefinition.targetDate,
         weightage: "30.00",
         lockedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-20") : null,
         createdById: employee.id,
@@ -623,7 +640,9 @@ async function main() {
       });
     }
 
-    for (const [goalIndex, goal] of individualGoalTemplates(employee.primaryOrgUnitId).entries()) {
+    const individualGoals = individualGoalTemplates(employee.primaryOrgUnitId);
+
+    for (const [goalIndex, goal] of individualGoals.entries()) {
       await prisma.goal.upsert({
         where: { id: id(6000 + Number(employee.employeeCode.slice(-4)) * 10 + goalIndex + 2) },
         update: {
@@ -647,11 +666,94 @@ async function main() {
       });
     }
 
+    const sheetGoalIds = [
+      sharedGoalId,
+      ...individualGoals.map((_, goalIndex) => id(6000 + employeeNumber * 10 + goalIndex + 2)),
+    ];
+
+    if (finalStatus !== GoalSheetStatus.DRAFT) {
+      for (const [goalIndex, goalId] of sheetGoalIds.entries()) {
+        const baseProgress = finalStatus === GoalSheetStatus.APPROVED_LOCKED ? 58 : 28;
+        const progress = Math.min(100, baseProgress + index * 3 + goalIndex * 6);
+        const status =
+          progress >= 92
+            ? AchievementStatus.COMPLETED
+            : progress > 0
+              ? AchievementStatus.ON_TRACK
+              : AchievementStatus.NOT_STARTED;
+
+        await prisma.achievementUpdate.upsert({
+          where: {
+            goalId_checkinWindowId: {
+              checkinWindowId: id(211),
+              goalId,
+            },
+          },
+          update: {
+            actualNumeric: progress.toFixed(2),
+            employeeComment:
+              progress >= 70
+                ? "Execution is on track with clear next milestones."
+                : "Early progress logged; manager input requested on prioritization.",
+            enteredById: employee.id,
+            progressScore: progress.toFixed(2),
+            status,
+            submittedAt: dt("2026-05-17"),
+            updatedById: employee.id,
+          },
+          create: {
+            id: id(8800 + employeeNumber * 10 + goalIndex),
+            actualNumeric: progress.toFixed(2),
+            checkinWindowId: id(211),
+            createdById: employee.id,
+            employeeComment:
+              progress >= 70
+                ? "Execution is on track with clear next milestones."
+                : "Early progress logged; manager input requested on prioritization.",
+            enteredById: employee.id,
+            goalId,
+            progressScore: progress.toFixed(2),
+            status,
+            submittedAt: dt("2026-05-17"),
+            updatedById: employee.id,
+          },
+        });
+      }
+
+      if (finalStatus === GoalSheetStatus.APPROVED_LOCKED) {
+        await prisma.checkinComment.upsert({
+          where: {
+            goalSheetId_checkinWindowId_managerId: {
+              checkinWindowId: id(211),
+              goalSheetId: sheetId,
+              managerId,
+            },
+          },
+          update: {
+            comment: "Reviewed goal-setting progress. Execution plan is credible; continue weekly updates.",
+            discussionDate: dt("2026-05-18"),
+            updatedById: managerId,
+          },
+          create: {
+            id: id(8900 + employeeNumber),
+            checkinWindowId: id(211),
+            comment: "Reviewed goal-setting progress. Execution plan is credible; continue weekly updates.",
+            createdById: managerId,
+            discussionDate: dt("2026-05-18"),
+            goalSheetId: sheetId,
+            managerId,
+            updatedById: managerId,
+          },
+        });
+      }
+    }
+
     if (finalStatus !== GoalSheetStatus.DRAFT) {
       await prisma.goalSheet.update({
         where: { id: sheetId },
         data: {
           status: finalStatus,
+          returnedAt: finalStatus === GoalSheetStatus.SUBMITTED && index === 8 ? dt("2026-05-14") : null,
           submittedAt: dt("2026-05-12"),
           approvedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-20") : null,
           approvedById: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? managerId : null,
@@ -675,6 +777,72 @@ async function main() {
           createdAt: dt("2026-05-12"),
         },
       });
+
+      await prisma.auditLog.upsert({
+        where: { id: id(8100 + employeeNumber * 10 + 1) },
+        update: {},
+        create: {
+          id: id(8100 + employeeNumber * 10 + 1),
+          action: AuditAction.SUBMIT,
+          actorId: employee.id,
+          actorRole: AppRole.EMPLOYEE,
+          after: { status: GoalSheetStatus.SUBMITTED },
+          before: { status: GoalSheetStatus.DRAFT },
+          createdAt: dt("2026-05-12"),
+          entityId: sheetId,
+          entityType: AuditEntityType.GOAL_SHEET,
+          reason: "Seeded goal submission for FY2026 demo cycle.",
+        },
+      });
+    }
+
+    if (finalStatus === GoalSheetStatus.SUBMITTED && index === 8) {
+      await prisma.approvalEvent.upsert({
+        where: { id: id(8000 + employeeNumber * 10 + 2) },
+        update: {},
+        create: {
+          id: id(8000 + employeeNumber * 10 + 2),
+          goalSheetId: sheetId,
+          actorId: managerId,
+          action: ApprovalAction.RETURNED,
+          fromStatus: GoalSheetStatus.SUBMITTED,
+          toStatus: GoalSheetStatus.RETURNED,
+          comment: "Returned once for sharper KPI target calibration.",
+          createdAt: dt("2026-05-14"),
+        },
+      });
+
+      await prisma.approvalEvent.upsert({
+        where: { id: id(8000 + employeeNumber * 10 + 3) },
+        update: {},
+        create: {
+          id: id(8000 + employeeNumber * 10 + 3),
+          goalSheetId: sheetId,
+          actorId: employee.id,
+          action: ApprovalAction.RESUBMITTED,
+          fromStatus: GoalSheetStatus.RETURNED,
+          toStatus: GoalSheetStatus.SUBMITTED,
+          comment: "Updated KPI target and resubmitted for approval.",
+          createdAt: dt("2026-05-16"),
+        },
+      });
+
+      await prisma.auditLog.upsert({
+        where: { id: id(8100 + employeeNumber * 10 + 2) },
+        update: {},
+        create: {
+          id: id(8100 + employeeNumber * 10 + 2),
+          action: AuditAction.RETURN,
+          actorId: managerId,
+          actorRole: AppRole.MANAGER,
+          after: { status: GoalSheetStatus.RETURNED },
+          before: { status: GoalSheetStatus.SUBMITTED },
+          createdAt: dt("2026-05-14"),
+          entityId: sheetId,
+          entityType: AuditEntityType.GOAL_SHEET,
+          reason: "KPI target required sharper calibration.",
+        },
+      });
     }
 
     if (finalStatus === GoalSheetStatus.APPROVED_LOCKED) {
@@ -690,6 +858,23 @@ async function main() {
           toStatus: GoalSheetStatus.APPROVED_LOCKED,
           comment: "Approved and locked for FY2026.",
           createdAt: dt("2026-05-20"),
+        },
+      });
+
+      await prisma.auditLog.upsert({
+        where: { id: id(8100 + employeeNumber * 10 + 2) },
+        update: {},
+        create: {
+          id: id(8100 + employeeNumber * 10 + 2),
+          action: AuditAction.APPROVE,
+          actorId: managerId,
+          actorRole: AppRole.MANAGER,
+          after: { status: GoalSheetStatus.APPROVED_LOCKED },
+          before: { status: GoalSheetStatus.SUBMITTED },
+          createdAt: dt("2026-05-20"),
+          entityId: sheetId,
+          entityType: AuditEntityType.GOAL_SHEET,
+          reason: "Manager approval completed for FY2026.",
         },
       });
     }

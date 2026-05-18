@@ -69,7 +69,12 @@ export const POST = withErrorHandling<ReviewRouteParams>(
     })
 
     revalidatePath('/manager')
+    revalidatePath('/manager/check-ins')
     revalidatePath('/manager/insights')
+    revalidatePath('/employee')
+    revalidatePath('/admin')
+    revalidatePath('/admin/governance')
+    revalidatePath('/admin/audit')
 
     return Response.json({
       data: {

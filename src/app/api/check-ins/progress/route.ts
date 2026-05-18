@@ -68,6 +68,9 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
 
   revalidatePath('/employee')
   revalidatePath('/employee/check-ins')
+  revalidatePath('/manager/check-ins')
+  revalidatePath('/manager/insights')
+  revalidatePath('/admin')
 
   return Response.json({
     data: {

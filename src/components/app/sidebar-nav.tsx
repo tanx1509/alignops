@@ -6,8 +6,39 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { NavItem } from "@/config/navigation";
 
-export function SidebarNav({ items }: { items: NavItem[] }) {
+export function SidebarNav({
+  items,
+  variant = "sidebar",
+}: {
+  items: NavItem[];
+  variant?: "mobile" | "sidebar";
+}) {
   const pathname = usePathname();
+
+  if (variant === "mobile") {
+    return (
+      <nav className="flex gap-2 overflow-x-auto border-b bg-background/90 px-4 py-2 backdrop-blur lg:hidden">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+          return (
+            <Link
+              className={cn(
+                "inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground",
+                isActive && "bg-foreground text-background hover:bg-foreground hover:text-background",
+              )}
+              href={item.href}
+              key={item.href}
+            >
+              <Icon className="h-4 w-4" />
+              {item.title}
+            </Link>
+          );
+        })}
+      </nav>
+    );
+  }
 
   return (
     <nav className="flex-1 space-y-1 px-3 py-4">

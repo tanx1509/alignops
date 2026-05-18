@@ -70,6 +70,9 @@ export const POST = withErrorHandling<UnlockRouteParams>(
     revalidatePath('/admin')
     revalidatePath('/admin/governance')
     revalidatePath('/admin/audit')
+    revalidatePath('/employee')
+    revalidatePath('/manager')
+    revalidatePath('/manager/insights')
 
     return Response.json({
       data: {

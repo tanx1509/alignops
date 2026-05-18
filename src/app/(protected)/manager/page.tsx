@@ -1,33 +1,101 @@
 import { GoalSheetStatus } from '@prisma/client'
-import { AlertTriangle, CheckCircle2, Clock3, Inbox, Users } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Gauge,
+  GitPullRequest,
+  Inbox,
+  ShieldAlert,
+  Sparkles,
+  Users,
+} from 'lucide-react'
 
-import { BarList } from '@/components/app/charts'
+import { BarList, DonutGauge, SegmentedBar } from '@/components/app/charts'
 import { EmptyState } from '@/components/app/empty-state'
+import {
+  QualityMeter,
+  SignalList,
+} from '@/components/app/intelligence-panels'
 import { MetricCard } from '@/components/app/metric-card'
 import { PageHeader } from '@/components/app/page-header'
 import { ProgressBar } from '@/components/app/progress-ring'
 import { StatusPill } from '@/components/app/status-pill'
+import { Timeline } from '@/components/app/timeline'
 import { ManagerSheetActions } from '@/components/manager-sheet-actions'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { requireUser } from '@/lib/auth/session'
 import { getManagerOperatingQueue, getStatusCount } from '@/lib/dal/dashboard.dal'
+import {
+  analyzeSheet,
+  formatStatusLabel,
+  latestProgress,
+} from '@/lib/goal-intelligence'
 
-function latestProgress(
-  updates: Array<{
-    progressScore: { toString: () => string } | null
-  }>,
-) {
-  return updates[0]?.progressScore ? Number(updates[0].progressScore.toString()) : 0
+function formatDate(value: Date | null | undefined) {
+  return value
+    ? value.toLocaleDateString('en', {
+        day: 'numeric',
+        month: 'short',
+      })
+    : 'Not set'
+}
+
+function riskLevelFromSheet(score: number, highRiskGoals: number) {
+  if (highRiskGoals > 0 || score < 55) return 'high'
+  if (score < 78) return 'medium'
+
+  return 'low'
 }
 
 export default async function ManagerDashboardPage() {
   const user = await requireUser()
   const { escalations, notifications, sheets } = await getManagerOperatingQueue(user.id)
-  const pending = sheets.filter((sheet) => sheet.status === GoalSheetStatus.SUBMITTED)
+  const sheetViews = sheets.map((sheet) => ({
+    intelligence: analyzeSheet(sheet),
+    sheet,
+  }))
+  const pending = sheetViews
+    .filter(({ sheet }) => sheet.status === GoalSheetStatus.SUBMITTED)
+    .sort(
+      (left, right) =>
+        right.intelligence.highRiskGoals - left.intelligence.highRiskGoals ||
+        left.intelligence.governanceHealth - right.intelligence.governanceHealth,
+    )
   const drafts = getStatusCount(sheets, GoalSheetStatus.DRAFT)
   const locked = getStatusCount(sheets, GoalSheetStatus.APPROVED_LOCKED)
+  const returned = getStatusCount(sheets, GoalSheetStatus.RETURNED)
   const completionRate = sheets.length > 0 ? Math.round((locked / sheets.length) * 100) : 0
+  const teamHealth =
+    sheetViews.length > 0
+      ? Math.round(
+          sheetViews.reduce(
+            (sum, view) => sum + view.intelligence.governanceHealth,
+            0,
+          ) / sheetViews.length,
+        )
+      : 0
+  const highRiskGoals = sheetViews.flatMap(({ intelligence, sheet }) =>
+    sheet.goals
+      .map((goal, index) => ({
+        analysis: intelligence.goalAnalyses[index]!,
+        employee: sheet.employee,
+        goal,
+        orgUnit: sheet.orgUnit,
+      }))
+      .filter(({ analysis }) => analysis.riskLevel === 'high'),
+  )
+  const missingCheckIns = sheetViews.reduce(
+    (sum, view) => sum + view.intelligence.missingCheckIns,
+    0,
+  )
+  const bottleneck =
+    pending.length > drafts && pending.length > 0
+      ? 'Manager approvals are the current bottleneck.'
+      : drafts > pending.length
+        ? 'Employee submissions are the current bottleneck.'
+        : 'No dominant lifecycle bottleneck detected.'
 
   return (
     <>
@@ -39,6 +107,9 @@ export default async function ManagerDashboardPage() {
             <Badge variant="outline">{sheets.length} direct reports</Badge>
             <Badge variant="secondary">{pending.length} pending decisions</Badge>
             <Badge variant="outline">{escalations.length} active escalations</Badge>
+            <Badge variant={teamHealth >= 75 ? 'secondary' : 'destructive'}>
+              Team health {teamHealth}%
+            </Badge>
           </div>
         }
         title="Team Goal Control"
@@ -69,11 +140,97 @@ export default async function ManagerDashboardPage() {
           />
           <MetricCard
             accent="bg-[color:var(--chart-4)]"
-            detail="Open and acknowledged"
+            detail="Risk or SLA warnings"
             icon={<AlertTriangle className="h-4 w-4" />}
-            label="Escalations"
-            value={escalations.length}
+            label="Governance alerts"
+            value={escalations.length + highRiskGoals.length + missingCheckIns}
           />
+        </section>
+
+        <section className="grid gap-5 xl:grid-cols-[1fr_24rem]">
+          <Card className="premium-card overflow-hidden">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Gauge className="h-4 w-4" />
+                Team performance overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-5 lg:grid-cols-[14rem_1fr]">
+              <DonutGauge label="Team health" value={teamHealth} />
+              <div className="space-y-4">
+                <SegmentedBar
+                  data={[
+                    { label: 'Draft', value: drafts },
+                    { label: 'Under review', value: pending.length },
+                    { label: 'Returned', value: returned },
+                    { label: 'Locked', value: locked },
+                  ]}
+                />
+                <div className="grid gap-3 md:grid-cols-3">
+                  <QualityMeter
+                    detail="Average governance health across your reporting line."
+                    label="Health score"
+                    value={teamHealth}
+                  />
+                  <QualityMeter
+                    detail="Approval throughput against the current team population."
+                    label="Completion"
+                    value={completionRate}
+                  />
+                  <div className="rounded-lg border bg-background/70 p-3">
+                    <div className="flex items-center gap-2">
+                      <GitPullRequest className="h-4 w-4 text-[color:var(--chart-1)]" />
+                      <p className="text-sm font-medium">Bottleneck detection</p>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{bottleneck}</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="premium-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Sparkles className="h-4 w-4 text-[color:var(--chart-1)]" />
+                Governance alerts
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SignalList
+                signals={[
+                  ...(pending.length > 0
+                    ? [
+                        {
+                          detail: `${pending.length} submitted sheet${pending.length === 1 ? '' : 's'} need a manager decision.`,
+                          severity: 'info' as const,
+                          title: 'Approval queue active',
+                        },
+                      ]
+                    : []),
+                  ...(highRiskGoals.length > 0
+                    ? [
+                        {
+                          detail: `${highRiskGoals.length} goal${highRiskGoals.length === 1 ? '' : 's'} contain quality or execution risk.`,
+                          severity: 'warning' as const,
+                          title: 'High-risk goals',
+                        },
+                      ]
+                    : []),
+                  ...(missingCheckIns > 0
+                    ? [
+                        {
+                          detail: `${missingCheckIns} closed-window check-in gap${missingCheckIns === 1 ? '' : 's'} found.`,
+                          severity: 'warning' as const,
+                          title: 'Check-in gap',
+                        },
+                      ]
+                    : []),
+                ]}
+                emptyLabel="No active governance alerts."
+              />
+            </CardContent>
+          </Card>
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[1fr_24rem]">
@@ -85,42 +242,105 @@ export default async function ManagerDashboardPage() {
                 title="Approval queue is clear"
               />
             ) : (
-              pending.map((sheet) => (
-                <Card className="premium-card" key={sheet.id}>
-                  <CardHeader>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StatusPill status={sheet.status} />
-                      <Badge variant="outline">{sheet.orgUnit?.name ?? 'No org unit'}</Badge>
-                      <Badge variant="secondary">{sheet.goals.length} goals</Badge>
-                    </div>
-                    <CardTitle className="text-xl tracking-normal">
-                      {sheet.employee.fullName}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground">{sheet.employee.title}</p>
-                  </CardHeader>
-                  <CardContent className="grid gap-5 xl:grid-cols-[1fr_20rem]">
-                    <div className="space-y-3">
-                      {sheet.goals.map((goal) => (
-                        <div className="rounded-xl border bg-muted/20 p-3" key={goal.id}>
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-medium">{goal.title ?? 'Untitled goal'}</p>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {goal.thrustArea ?? goal.source} - {goal.weightage.toString()}%
-                              </p>
-                            </div>
-                            <StatusPill status={goal.status} />
-                          </div>
-                          <div className="mt-3">
-                            <ProgressBar value={latestProgress(goal.achievementUpdates)} />
-                          </div>
+              pending.map(({ intelligence, sheet }) => {
+                const riskLevel = riskLevelFromSheet(
+                  intelligence.governanceHealth,
+                  intelligence.highRiskGoals,
+                )
+
+                return (
+                  <Card className="premium-card" key={sheet.id}>
+                    <CardHeader className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusPill status={sheet.status} />
+                        <Badge variant="outline">{sheet.orgUnit?.name ?? 'No org unit'}</Badge>
+                        <Badge variant="secondary">{sheet.goals.length} goals</Badge>
+                        <Badge
+                          variant={
+                            riskLevel === 'high'
+                              ? 'destructive'
+                              : riskLevel === 'medium'
+                                ? 'secondary'
+                                : 'outline'
+                          }
+                        >
+                          {riskLevel} risk
+                        </Badge>
+                      </div>
+                      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                        <div>
+                          <CardTitle className="text-xl tracking-normal">
+                            {sheet.employee.fullName}
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground">
+                            {sheet.employee.title} - submitted {formatDate(sheet.submittedAt)}
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                    <ManagerSheetActions sheetId={sheet.id} />
-                  </CardContent>
-                </Card>
-              ))
+                        <QualityMeter
+                          detail="Sheet health"
+                          label="Health"
+                          value={intelligence.governanceHealth}
+                        />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="grid gap-5 xl:grid-cols-[1fr_20rem]">
+                      <div className="space-y-3">
+                        <SignalList signals={intelligence.signals.slice(0, 2)} />
+                        {sheet.goals.map((goal, index) => {
+                          const analysis = intelligence.goalAnalyses[index]!
+
+                          return (
+                            <div className="rounded-xl border bg-muted/20 p-3" key={goal.id}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium">
+                                    {goal.title ?? 'Untitled shared KPI'}
+                                  </p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {goal.thrustArea ?? goal.source} - {goal.weightage.toString()}%
+                                  </p>
+                                </div>
+                                <Badge
+                                  variant={
+                                    analysis.riskLevel === 'high'
+                                      ? 'destructive'
+                                      : analysis.riskLevel === 'medium'
+                                        ? 'secondary'
+                                        : 'outline'
+                                  }
+                                >
+                                  {analysis.qualityScore}%
+                                </Badge>
+                              </div>
+                              <div className="mt-3">
+                                <ProgressBar value={latestProgress(goal)} />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      <div className="space-y-4">
+                        <ManagerSheetActions
+                          employeeName={sheet.employee.fullName}
+                          riskLevel={riskLevel}
+                          sheetId={sheet.id}
+                        />
+                        <div className="rounded-xl border bg-background/70 p-3">
+                          <p className="mb-3 text-sm font-medium">Review timeline</p>
+                            <Timeline
+                              items={sheet.approvalEvents.map((event) => ({
+                                description: event.comment,
+                                meta: formatDate(event.createdAt),
+                                title: `${formatStatusLabel(event.action)} by ${event.actor.fullName}`,
+                              }))}
+                            />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })
             )}
           </div>
 
@@ -135,9 +355,40 @@ export default async function ManagerDashboardPage() {
                     { label: 'Draft', value: drafts },
                     { label: 'Under review', value: pending.length },
                     { label: 'Locked', value: locked },
-                    { label: 'Returned', value: getStatusCount(sheets, GoalSheetStatus.RETURNED) },
+                    { label: 'Returned', value: returned },
                   ]}
                 />
+              </CardContent>
+            </Card>
+
+            <Card className="premium-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ShieldAlert className="h-4 w-4 text-[color:var(--chart-4)]" />
+                  High-risk goals
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {highRiskGoals.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No high-risk goals detected.</p>
+                ) : (
+                  highRiskGoals.slice(0, 5).map(({ analysis, employee, goal, orgUnit }) => (
+                    <div className="rounded-lg border bg-muted/30 p-3" key={goal.id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium">{employee.fullName}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {goal.title ?? 'Untitled shared KPI'}
+                          </p>
+                        </div>
+                        <Badge variant="destructive">{analysis.riskScore}</Badge>
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {orgUnit?.name ?? 'No org unit'} - {analysis.signals[0]?.title}
+                      </p>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
 

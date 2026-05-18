@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Send } from "lucide-react";
 
 import { notify } from "@/components/app/toast-hub";
 import { Button } from "@/components/ui/button";
@@ -59,8 +60,9 @@ export function SubmitGoalsButton({
 
   return (
     <div className="space-y-2">
-      <Button disabled={isSubmitting} onClick={handleSubmit} type="button">
-        {isSubmitting ? "Submitting..." : "Submit Goals"}
+      <Button className="gap-2" disabled={isSubmitting} onClick={handleSubmit} type="button">
+        <Send className="h-4 w-4" />
+        {isSubmitting ? "Submitting..." : "Submit goals"}
       </Button>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
