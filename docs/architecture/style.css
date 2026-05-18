@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+* {
+  font-family: 'Inter', -apple-system, sans-serif !important;
+}
+
+body {
+  background-color: #0a0f18 !important;
+}
+
+svg {
+  background-color: #0a0f18 !important;
+}
+
+/* Nodes styling */
+.node rect, .node circle, .node ellipse, .node polygon {
+  fill: #1e293b !important;
+  stroke: #475569 !important;
+  stroke-width: 1.5px !important;
+  rx: 8px !important;
+  ry: 8px !important;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+}
+
+.node .label {
+  font-weight: 500;
+  color: #f8fafc !important;
+  fill: #f8fafc !important;
+}
+
+/* Edges */
+.edgePath .path {
+  stroke: #475569 !important;
+  stroke-width: 1.5px !important;
+  opacity: 0.8;
+}
+
+.marker {
+  fill: #475569 !important;
+  stroke: #475569 !important;
+}
+
+/* Subgraph styling */
+.cluster text {
+  font-weight: 600 !important;
+  font-size: 16px !important;
+}
+
+.cluster rect {
+  rx: 16px !important;
+  ry: 16px !important;
+}
+
+/* Glow effects matching accent colors using attribute selectors for the inline style strings */
+[style*="1d4ed8"] {
+  filter: drop-shadow(0 0 16px rgba(29,78,216,0.3)) !important;
+}
+[style*="7c3aed"] {
+  filter: drop-shadow(0 0 16px rgba(124,58,237,0.3)) !important;
+}
+[style*="0891b2"] {
+  filter: drop-shadow(0 0 16px rgba(8,145,178,0.3)) !important;
+}
+[style*="059669"] {
+  filter: drop-shadow(0 0 16px rgba(5,150,105,0.3)) !important;
+}
+[style*="d97706"] {
+  filter: drop-shadow(0 0 16px rgba(217,119,6,0.3)) !important;
+}
