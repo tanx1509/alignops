@@ -26,7 +26,7 @@
 
 <br/>
 
-[**Live Platform**](https://alignops-five.vercel.app) · [**Live Demo**](#demo-credentials) · [**Walkthrough**](#product-walkthrough) · [**Architecture**](#architecture) · [**Setup**](#quick-start)
+[**Live Platform**](https://alignops-five.vercel.app) · [**Live Demo**](#demo-credentials) · [**Product Demo**](https://www.loom.com/share/605061dd2d28450781752f5d2b41a5e1) · [**Walkthrough**](#product-walkthrough) · [**Architecture**](#architecture) · [**Setup**](#quick-start)
 
 <br/>
 
@@ -39,6 +39,12 @@
 ### Production Deployment
 
 [https://alignops-five.vercel.app/]
+
+## Product Demo
+
+Watch the full AlignOps walkthrough here:
+
+[![Watch the Demo](https://cdn.loom.com/sessions/thumbnails/605061dd2d28450781752f5d2b41a5e1-with-play.gif)](https://www.loom.com/share/605061dd2d28450781752f5d2b41a5e1)
 
 ### Demo Credentials
 
