@@ -1,0 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+* { font-family: 'Inter', sans-serif !important; }
+.nodeLabel, .edgeLabel { font-size: 20px !important; line-height: 1.4; }
+.node rect, .node circle, .node polygon { rx: 12px !important; ry: 12px !important; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5)); stroke-width: 1.5px !important; }
+.cluster rect { rx: 16px !important; ry: 16px !important; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4)); }
+.cluster text { font-size: 24px !important; font-weight: 600 !important; }
+.edgePath .path { stroke-width: 2px !important; }
+.node .label { font-weight: 500; }

@@ -66,3 +66,17 @@ flowchart TB
   IntelEngine --> SMART & KPIDupe & RiskEngine & WorkloadBalancer & HealthScorer & ForecastEngine
   DAL --> PG
   PG --> AuditLedger & EscLog & GoalSheets & OrgGraph
+
+  classDef portals fill:#f8fafc,stroke:#94a3b8,stroke-width:2px,color:#0f172a,rx:12px,ry:12px
+  classDef frontend fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a,rx:12px,ry:12px
+  classDef identity fill:#f5f3ff,stroke:#8b5cf6,stroke-width:2px,color:#4c1d95,rx:12px,ry:12px
+  classDef domain fill:#ecfeff,stroke:#06b6d4,stroke-width:2px,color:#164e63,rx:12px,ry:12px
+  classDef intelligence fill:#ecfdf5,stroke:#10b981,stroke-width:2px,color:#064e3b,rx:12px,ry:12px
+  classDef persistence fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f,rx:12px,ry:12px
+
+  class Portals portals
+  class Frontend frontend
+  class Identity identity
+  class Domain domain
+  class Intelligence intelligence
+  class Persistence persistence
