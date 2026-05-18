@@ -14,7 +14,18 @@ import {
   Target,
 } from 'lucide-react'
 
-import { BarList, SegmentedBar, Sparkline } from '@/components/app/charts'
+import dynamic from 'next/dynamic'
+import { Skeleton } from '@/components/ui/skeleton'
+
+const BarList = dynamic(() => import('@/components/app/charts').then(mod => mod.BarList), {
+  loading: () => <Skeleton className="h-[200px] w-full rounded-xl" />,
+})
+const SegmentedBar = dynamic(() => import('@/components/app/charts').then(mod => mod.SegmentedBar), {
+  loading: () => <Skeleton className="h-10 w-full rounded-xl" />,
+})
+const Sparkline = dynamic(() => import('@/components/app/charts').then(mod => mod.Sparkline), {
+  loading: () => <Skeleton className="h-[100px] w-full rounded-xl" />,
+})
 import { EmptyState } from '@/components/app/empty-state'
 import {
   LifecycleRail,
