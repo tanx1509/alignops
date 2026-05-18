@@ -26,7 +26,7 @@
 
 <br/>
 
-[**Live Demo**](#demo-credentials) · [**Walkthrough**](#product-walkthrough) · [**Architecture**](#architecture) · [**Setup**](#quick-start)
+[**Live Platform**](https://alignops-five.vercel.app) · [**Live Demo**](#demo-credentials) · [**Walkthrough**](#product-walkthrough) · [**Architecture**](#architecture) · [**Setup**](#quick-start)
 
 <br/>
 
