@@ -1,4 +1,3 @@
-
 <div align="center">
 
 <br/>
@@ -144,11 +143,15 @@ This governance lifecycle becomes the backbone for:
 
 Enterprise-wide visibility into execution health, approvals, escalations, auditability, and governance operations.
 
+![Governance Control Tower](./screenshots/02-governance-control-tower.png)
+
 ---
 
 ### Governance Audit Intelligence
 
 Full governance traceability across approvals, escalations, interventions, and operational decisions.
+
+![Governance Audit Intelligence](./screenshots/04-audit-log.png)
 
 ---
 
@@ -156,11 +159,15 @@ Full governance traceability across approvals, escalations, interventions, and o
 
 Operational analytics with reporting exports and organizational execution visibility.
 
+![Analytics & Governance Reporting](./screenshots/05-analytics-reports.png)
+
 ---
 
 ### Manager Operating Center
 
 Managers review approvals, identify execution risks, monitor SLA aging, and govern team performance.
+
+![Manager Operating Center](./screenshots/06-manager-goal-control.png)
 
 ---
 
@@ -168,11 +175,15 @@ Managers review approvals, identify execution risks, monitor SLA aging, and gove
 
 Risk-aware approval flows with governance comments, escalation context, and audit persistence.
 
+![Approval Workflow](./screenshots/07-approval-queue.png)
+
 ---
 
 ### Employee Goal Cockpit
 
 Employees manage goals, KPI confidence, progress tracking, and execution readiness.
+
+![Employee Goal Cockpit](./screenshots/10-employee-cockpit.png)
 
 ---
 
@@ -180,11 +191,15 @@ Employees manage goals, KPI confidence, progress tracking, and execution readine
 
 Structured quarterly check-ins and execution tracking across milestones.
 
+![Progress Journal](./screenshots/11-progress-journal.png)
+
 ---
 
 ### Organizational Intelligence
 
 Leadership visibility into execution bottlenecks, operational trends, and organizational health.
+
+![Organizational Intelligence](./screenshots/12-team-insights.png)
 
 ---
 
@@ -513,37 +528,59 @@ AlignOps is a modular monolith by design. The architecture supports the followin
 
 ```text
 alignops/
+├── README.md
+├── package.json
+├── next.config.js
+├── tsconfig.json
+├── middleware.ts               # Session resolution + RBAC routing
+├── .env.example
+│
+├── screenshots/                # Walkthrough and demo images
+│   ├── 02-governance-control-tower.png
+│   ├── 04-audit-log.png
+│   ├── 05-analytics-reports.png
+│   ├── 06-manager-goal-control.png
+│   ├── 07-approval-queue.png
+│   ├── 10-employee-cockpit.png
+│   ├── 11-progress-journal.png
+│   └── 12-team-insights.png
+│
 ├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── (protected)/
-│   │   │   ├── employee/       # Employee Goal Cockpit
-│   │   │   ├── manager/        # Manager Operating Center
-│   │   │   └── admin/          # Admin Governance Control Tower
-│   │   └── api/                # API Route Handlers
-│   ├── modules/                # Domain modules (bounded contexts)
-│   │   ├── goals/              # Goal sheet state machine + DAL
-│   │   ├── checkins/           # Check-in logic + scoring
-│   │   ├── escalations/        # Escalation rules + events
-│   │   ├── audit/              # Immutable audit ledger
-│   │   ├── reporting/          # Analytics + CSV pipeline
-│   │   ├── org/                # Org unit hierarchy
-│   │   └── shared-goals/       # Cross-team shared goal logic
-│   ├── components/
-│   │   ├── app/                # Domain UI components
-│   │   └── ui/                 # Base UI primitives (shadcn/ui)
-│   ├── lib/                    # Utilities, Prisma client, Supabase client
-│   ├── types/                  # Shared TypeScript types
-│   └── config/                 # Navigation, environment config
+│   ├── app/                    # Next.js App Router
+│   │   ├── (protected)/
+│   │   │   ├── employee/       # Employee Goal Cockpit
+│   │   │   ├── manager/        # Manager Operating Center
+│   │   │   └── admin/          # Admin Governance Control Tower
+│   │   └── api/                # API Route Handlers
+│   │
+│   ├── modules/                # Domain modules (bounded contexts)
+│   │   ├── goals/              # Goal sheet state machine + DAL
+│   │   ├── checkins/           # Check-in logic + scoring
+│   │   ├── escalations/        # Escalation rules + events
+│   │   ├── audit/              # Immutable audit ledger
+│   │   ├── reporting/          # Analytics + CSV pipeline
+│   │   ├── org/                # Org unit hierarchy
+│   │   └── shared-goals/       # Cross-team shared goal logic
+│   │
+│   ├── components/
+│   │   ├── app/                # Domain UI components
+│   │   └── ui/                 # Base UI primitives (shadcn/ui)
+│   │
+│   ├── lib/                    # Utilities, Prisma client, Supabase client
+│   ├── types/                  # Shared TypeScript types
+│   └── config/                 # Navigation, environment config
+│
 ├── prisma/
-│   ├── schema.prisma           # Full data model
-│   └── seed.ts                 # Enterprise demo data
+│   ├── schema.prisma           # Full data model
+│   └── seed.ts                 # Enterprise demo data
+│
 ├── docs/
-│   ├── architecture.mmd        # Mermaid architecture diagram
-│   ├── brd-coverage.md         # Hackathon BRD mapping
-│   ├── demo-walkthrough.md     # Judging walkthrough guide
-│   └── deployment.md           # Deployment playbook
-└── middleware.ts               # Session resolution + RBAC routing
-
+│   ├── architecture.mmd        # Mermaid architecture diagram
+│   ├── brd-coverage.md         # Hackathon BRD mapping
+│   ├── demo-walkthrough.md     # Judging walkthrough guide
+│   └── deployment.md           # Deployment playbook
+│
+└── public/
 ```
 
 ---
