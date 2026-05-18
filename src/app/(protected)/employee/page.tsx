@@ -23,6 +23,10 @@ import {
   SmartCriteriaGrid,
 } from '@/components/app/intelligence-panels'
 import { MetricCard } from '@/components/app/metric-card'
+import {
+  ExecutionHealthPanel,
+  QuarterlyTimeline,
+} from '@/components/app/operating-panels'
 import { PageHeader } from '@/components/app/page-header'
 import { ProgressBar, ProgressRing } from '@/components/app/progress-ring'
 import { StatusPill } from '@/components/app/status-pill'
@@ -36,6 +40,11 @@ import { getEmployeeOperatingSystem } from '@/lib/dal/dashboard.dal'
 import {
   analyzeSheet,
   formatStatusLabel,
+  goalDescription,
+  goalTargetDate,
+  goalTargetNumeric,
+  goalThrustArea,
+  goalTitle,
   latestProgress,
 } from '@/lib/goal-intelligence'
 
@@ -107,7 +116,7 @@ export default async function EmployeePage() {
     title: `${formatStatusLabel(event.action)} by ${event.actor.fullName}`,
   }))
   const progressTrend = sheet.goals.map((goal, index) => ({
-    label: goal.title ?? `Goal ${index + 1}`,
+    label: goalTitle(goal) ?? `Goal ${index + 1}`,
     value: latestProgress(goal),
   }))
   const completionData = [
@@ -117,6 +126,16 @@ export default async function EmployeePage() {
       value: Math.max(sheet.goals.length - intelligence.completedGoals, 0),
     },
   ]
+  const quarterTimeline = sheet.cycle.checkinWindows.map((window) => ({
+    detail: `${formatDate(window.opensAt)} to ${formatDate(window.closesAt)}`,
+    label: window.name,
+    state:
+      window.status === 'CLOSED'
+        ? ('closed' as const)
+        : window.status === 'OPEN'
+          ? ('current' as const)
+          : ('future' as const),
+  }))
 
   return (
     <>
@@ -143,7 +162,7 @@ export default async function EmployeePage() {
             </Badge>
           </div>
         }
-        title="My Goal Workspace"
+        title="Goal Cockpit"
       />
 
       <div className="space-y-6 p-5 xl:p-8">
@@ -203,11 +222,16 @@ export default async function EmployeePage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-center">
+              <div className="flex flex-wrap items-center justify-center gap-5">
                 <ProgressRing
                   label="Governance health"
                   size="lg"
                   value={intelligence.governanceHealth}
+                />
+                <ProgressRing
+                  label="KPI confidence"
+                  size="md"
+                  value={intelligence.kpiConfidence}
                 />
               </div>
             </div>
@@ -228,13 +252,18 @@ export default async function EmployeePage() {
                   label="Governance score"
                   value={intelligence.governanceHealth}
                 />
+                <QualityMeter
+                  detail={intelligence.forecast.detail}
+                  label={intelligence.forecast.label}
+                  value={intelligence.forecast.confidence}
+                />
                 <div className="rounded-lg border bg-background/70 p-3">
                   <div className="flex items-center gap-2">
                     <Flame className="h-4 w-4 text-[color:var(--chart-4)]" />
-                    <p className="text-sm font-medium">{intelligence.streak} window streak</p>
+                    <p className="text-sm font-medium">{intelligence.momentumLabel} momentum</p>
                   </div>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Achievement streak is based on check-in windows with recorded updates.
+                    Achievement streak: {intelligence.streak} window{intelligence.streak === 1 ? '' : 's'} with recorded updates.
                   </p>
                 </div>
               </div>
@@ -273,6 +302,30 @@ export default async function EmployeePage() {
           />
         </section>
 
+        <ExecutionHealthPanel
+          confidence={intelligence.kpiConfidence}
+          cycleProgress={intelligence.cycleProgress}
+          forecastDetail={intelligence.forecast.detail}
+          forecastLabel={intelligence.forecast.label}
+          momentum={intelligence.momentumLabel}
+          riskScore={intelligence.executionRiskScore}
+          score={intelligence.governanceHealth}
+          stageProgress={intelligence.stageProgress}
+          title="Personal execution health engine"
+        />
+
+        <Card className="premium-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CalendarClock className="h-4 w-4" />
+              Quarterly progress timeline
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <QuarterlyTimeline items={quarterTimeline} />
+          </CardContent>
+        </Card>
+
         <section className="grid gap-4 xl:grid-cols-[1fr_24rem]">
           <div className="space-y-4">
             {sheet.goals.map((goal, index) => {
@@ -285,7 +338,8 @@ export default async function EmployeePage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusPill status={goal.status} />
                       <Badge variant="outline">{goal.source}</Badge>
-                      {goal.thrustArea ? <Badge variant="secondary">{goal.thrustArea}</Badge> : null}
+                      {goalThrustArea(goal) ? <Badge variant="secondary">{goalThrustArea(goal)}</Badge> : null}
+                      <Badge variant="outline">{analysis.forecast.label}</Badge>
                       <Badge
                         variant={
                           analysis.riskLevel === 'high'
@@ -301,10 +355,10 @@ export default async function EmployeePage() {
                         <GoalRefinementButton
                           description={goal.description ?? ''}
                           goalId={goal.id}
-                          targetDate={formatInputDate(goal.targetDate)}
-                          targetNumeric={goal.targetNumeric?.toString() ?? ''}
-                          thrustArea={goal.thrustArea ?? ''}
-                          title={goal.title ?? ''}
+                          targetDate={formatInputDate(goalTargetDate(goal))}
+                          targetNumeric={goalTargetNumeric(goal)?.toString() ?? ''}
+                          thrustArea={goalThrustArea(goal) ?? ''}
+                          title={goalTitle(goal) ?? ''}
                           weightage={goal.weightage.toString()}
                         />
                       ) : null}
@@ -312,10 +366,10 @@ export default async function EmployeePage() {
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div>
                         <CardTitle className="text-lg tracking-normal">
-                          {goal.title ?? 'Untitled shared KPI'}
+                          {goalTitle(goal) ?? 'Untitled shared KPI'}
                         </CardTitle>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          {goal.description ?? 'Description is missing from this goal.'}
+                          {goalDescription(goal) ?? 'Description is missing from this goal.'}
                         </p>
                       </div>
                       <QualityMeter
@@ -328,7 +382,10 @@ export default async function EmployeePage() {
 
                   <CardContent className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-[1fr_15rem]">
-                      <ProgressBar label="Latest check-in progress" value={goalProgress} />
+                      <div className="space-y-3">
+                        <ProgressBar label="Latest check-in progress" value={goalProgress} />
+                        <ProgressBar label="KPI confidence meter" value={analysis.kpiConfidence} />
+                      </div>
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div className="rounded-lg border bg-muted/30 p-3">
                           <p className="text-xs text-muted-foreground">Weight</p>
@@ -337,7 +394,7 @@ export default async function EmployeePage() {
                         <div className="rounded-lg border bg-muted/30 p-3">
                           <p className="text-xs text-muted-foreground">Target</p>
                           <p className="mt-1 truncate font-semibold">
-                            {goal.targetNumeric?.toString() ?? formatDate(goal.targetDate)}
+                            {goalTargetNumeric(goal)?.toString() ?? formatDate(goalTargetDate(goal))}
                           </p>
                         </div>
                       </div>
@@ -348,6 +405,22 @@ export default async function EmployeePage() {
                     <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
                       <SignalList signals={analysis.signals.slice(0, 2)} />
                       <div className="rounded-lg border bg-background/70 p-3">
+                        <div className="mb-3 flex flex-wrap gap-2">
+                          {analysis.duplicate ? (
+                            <Badge variant="secondary">Duplicate KPI</Badge>
+                          ) : null}
+                          {analysis.unrealisticTarget ? (
+                            <Badge variant="destructive">Target risk</Badge>
+                          ) : null}
+                          {analysis.dependencyWarning ? (
+                            <Badge variant="secondary">Dependency warning</Badge>
+                          ) : null}
+                          {!analysis.duplicate &&
+                          !analysis.unrealisticTarget &&
+                          !analysis.dependencyWarning ? (
+                            <Badge variant="outline">No blocker detected</Badge>
+                          ) : null}
+                        </div>
                         <div className="mb-3 flex items-center gap-2">
                           <Award className="h-4 w-4 text-[color:var(--chart-2)]" />
                           <p className="text-sm font-medium">Check-in history</p>
@@ -399,7 +472,7 @@ export default async function EmployeePage() {
                 <SegmentedBar data={completionData} />
                 <BarList
                   data={sheet.goals.map((goal) => ({
-                    label: goal.title ?? 'Untitled',
+                    label: goalTitle(goal) ?? 'Untitled',
                     value: Number(goal.weightage),
                   }))}
                   max={100}

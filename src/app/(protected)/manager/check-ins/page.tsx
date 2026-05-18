@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { requireUser } from '@/lib/auth/session'
 import { getManagerOperatingQueue } from '@/lib/dal/dashboard.dal'
+import { goalTitle } from '@/lib/goal-intelligence'
 
 function latestProgress(
   updates: Array<{
@@ -67,7 +68,7 @@ export default async function ManagerCheckInsPage() {
                     <CardTitle className="text-lg tracking-normal">
                       {employee.fullName}
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground">{goal.title ?? 'Untitled goal'}</p>
+                    <p className="text-sm text-muted-foreground">{goalTitle(goal) ?? 'Untitled goal'}</p>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <ProgressBar label="Latest employee progress" value={progress.score} />

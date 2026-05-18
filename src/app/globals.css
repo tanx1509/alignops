@@ -90,9 +90,11 @@
     background-image:
       linear-gradient(180deg, color-mix(in oklab, var(--chart-2) 5%, transparent), transparent 18rem),
       linear-gradient(180deg, color-mix(in oklab, var(--background) 96%, white), var(--background));
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
   }
   ::selection {
     background: color-mix(in oklab, var(--chart-1) 24%, transparent);
@@ -111,10 +113,10 @@
 
 @layer components {
   .premium-card {
-    @apply rounded-lg border bg-card shadow-[0_1px_1px_rgba(15,23,42,0.04),0_12px_32px_rgba(15,23,42,0.06)] backdrop-blur transition-all duration-200;
+    @apply rounded-lg border bg-card shadow-[0_1px_1px_rgba(15,23,42,0.04),0_12px_32px_rgba(15,23,42,0.06)] backdrop-blur transition-all duration-200 ease-out;
   }
   .premium-card:hover {
-    @apply border-border shadow-[0_1px_1px_rgba(15,23,42,0.04),0_18px_44px_rgba(15,23,42,0.08)];
+    @apply -translate-y-px border-border shadow-[0_1px_1px_rgba(15,23,42,0.04),0_18px_44px_rgba(15,23,42,0.08)];
   }
   .dark .premium-card {
     @apply bg-card shadow-[0_1px_1px_rgba(0,0,0,0.25),0_16px_42px_rgba(0,0,0,0.22)];
@@ -137,6 +139,17 @@
       linear-gradient(color-mix(in oklab, var(--border) 48%, transparent) 1px, transparent 1px),
       linear-gradient(90deg, color-mix(in oklab, var(--border) 48%, transparent) 1px, transparent 1px);
     background-size: 36px 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .premium-card,
+  .premium-card:hover {
+    transform: none;
+    transition-duration: 0.01ms;
   }
 }
 

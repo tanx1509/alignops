@@ -6,9 +6,11 @@ import {
   Gauge,
   GitPullRequest,
   Inbox,
+  LineChart,
+  MailCheck,
   ShieldAlert,
   Sparkles,
-  Users,
+  TimerReset,
 } from 'lucide-react'
 
 import { BarList, DonutGauge, SegmentedBar } from '@/components/app/charts'
@@ -18,6 +20,11 @@ import {
   SignalList,
 } from '@/components/app/intelligence-panels'
 import { MetricCard } from '@/components/app/metric-card'
+import { NotificationCenter, type EnterpriseNotification } from '@/components/app/notification-center'
+import {
+  DecisionPanel,
+  ExecutionHealthPanel,
+} from '@/components/app/operating-panels'
 import { PageHeader } from '@/components/app/page-header'
 import { ProgressBar } from '@/components/app/progress-ring'
 import { StatusPill } from '@/components/app/status-pill'
@@ -30,6 +37,8 @@ import { getManagerOperatingQueue, getStatusCount } from '@/lib/dal/dashboard.da
 import {
   analyzeSheet,
   formatStatusLabel,
+  goalThrustArea,
+  goalTitle,
   latestProgress,
 } from '@/lib/goal-intelligence'
 
@@ -96,6 +105,103 @@ export default async function ManagerDashboardPage() {
       : drafts > pending.length
         ? 'Employee submissions are the current bottleneck.'
         : 'No dominant lifecycle bottleneck detected.'
+  const approvalSlaAging = pending.reduce(
+    (max, view) => Math.max(max, view.intelligence.approvalSlaDays),
+    0,
+  )
+  const teamRiskScore =
+    sheetViews.length > 0
+      ? Math.round(
+          sheetViews.reduce(
+            (sum, view) => sum + view.intelligence.executionRiskScore,
+            0,
+          ) / sheetViews.length,
+        )
+      : 0
+  const managerEffectiveness = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(
+        teamHealth * 0.45 +
+          completionRate * 0.35 +
+          Math.max(0, 100 - approvalSlaAging * 12) * 0.2,
+      ),
+    ),
+  )
+  const performanceDistribution = [
+    {
+      label: 'Controlled',
+      value: sheetViews.filter(
+        (view) => view.intelligence.riskPosture === 'controlled',
+      ).length,
+    },
+    {
+      label: 'Watch',
+      value: sheetViews.filter((view) => view.intelligence.riskPosture === 'watch')
+        .length,
+    },
+    {
+      label: 'Critical',
+      value: sheetViews.filter(
+        (view) => view.intelligence.riskPosture === 'critical',
+      ).length,
+    },
+  ]
+  const attentionQueue = [
+    ...pending.slice(0, 3).map(({ intelligence, sheet }) => ({
+      detail: `${sheet.goals.length} goals, ${intelligence.approvalSlaDays}d approval SLA age`,
+      label: sheet.employee.fullName,
+      severity:
+        intelligence.approvalSlaDays > 5 || intelligence.highRiskGoals > 0
+          ? 'high'
+          : 'medium',
+      title: 'Decision required',
+    })),
+    ...highRiskGoals.slice(0, 3).map(({ analysis, employee, goal }) => ({
+      detail: `${goalTitle(goal) ?? 'Untitled shared KPI'} - risk ${analysis.riskScore}`,
+      label: employee.fullName,
+      severity: 'high',
+      title: 'KPI intervention',
+    })),
+    ...escalations.slice(0, 2).map((event) => ({
+      detail: `${event.currentLevel} escalation due ${event.dueAt.toLocaleDateString()}`,
+      label: event.employee.fullName,
+      severity: 'high',
+      title: 'Escalation open',
+    })),
+  ].slice(0, 6)
+  const enterpriseNotifications: EnterpriseNotification[] =
+    notifications.length > 0
+      ? notifications.map((notification) => ({
+          body: notification.body,
+          channel:
+            notification.type === 'GOAL_SUBMITTED'
+              ? 'Teams'
+              : notification.type === 'ESCALATION'
+                ? 'Email'
+                : 'System',
+          createdAt: formatDate(notification.createdAt),
+          ctaHref: notification.linkHref ?? '/manager',
+          ctaLabel: 'Open queue',
+          id: notification.id,
+          previewBody: `${notification.body}\n\nRecommended action: review the sheet, add a decision comment, and keep the audit trail complete.`,
+          previewSubject: notification.title,
+          priority: notification.type === 'ESCALATION' ? 'high' : 'medium',
+          title: notification.title,
+        }))
+      : pending.slice(0, 2).map(({ intelligence, sheet }) => ({
+          body: `${sheet.employee.fullName} is waiting for a manager decision.`,
+          channel: 'Teams',
+          createdAt: formatDate(sheet.submittedAt),
+          ctaHref: '/manager',
+          ctaLabel: 'Review sheet',
+          id: `pending-${sheet.id}`,
+          previewBody: `Hi ${user.name},\n\n${sheet.employee.fullName}'s FY2026 goal sheet is in your approval queue with ${intelligence.highRiskGoals} high-risk KPI signal${intelligence.highRiskGoals === 1 ? '' : 's'}.\n\nDecision options: approve and lock, or return with comments.`,
+          previewSubject: `Approval needed: ${sheet.employee.fullName}`,
+          priority: intelligence.highRiskGoals > 0 ? 'high' : 'medium',
+          title: 'Goal approval card ready',
+        }))
 
   return (
     <>
@@ -147,6 +253,33 @@ export default async function ManagerDashboardPage() {
           />
         </section>
 
+        <ExecutionHealthPanel
+          confidence={Math.round(
+            sheetViews.length > 0
+              ? sheetViews.reduce(
+                  (sum, view) => sum + view.intelligence.kpiConfidence,
+                  0,
+                ) / sheetViews.length
+              : 0,
+          )}
+          cycleProgress={
+            sheetViews[0]?.intelligence.cycleProgress ?? 0
+          }
+          forecastDetail={`${attentionQueue.length} prioritized item${attentionQueue.length === 1 ? '' : 's'} across approvals, KPI risk, and escalations.`}
+          forecastLabel="Team execution pulse"
+          momentum={
+            teamRiskScore >= 55
+              ? 'Intervention needed'
+              : teamHealth >= 78
+                ? 'Operating cleanly'
+                : 'Watchlist active'
+          }
+          riskScore={teamRiskScore}
+          score={teamHealth}
+          stageProgress={completionRate}
+          title="Manager execution health engine"
+        />
+
         <section className="grid gap-5 xl:grid-cols-[1fr_24rem]">
           <Card className="premium-card overflow-hidden">
             <CardHeader>
@@ -176,6 +309,11 @@ export default async function ManagerDashboardPage() {
                     detail="Approval throughput against the current team population."
                     label="Completion"
                     value={completionRate}
+                  />
+                  <QualityMeter
+                    detail="Blends team health, completion, and approval SLA aging."
+                    label="Manager effectiveness"
+                    value={managerEffectiveness}
                   />
                   <div className="rounded-lg border bg-background/70 p-3">
                     <div className="flex items-center gap-2">
@@ -228,6 +366,53 @@ export default async function ManagerDashboardPage() {
                     : []),
                 ]}
                 emptyLabel="No active governance alerts."
+              />
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="grid gap-5 xl:grid-cols-[1fr_24rem]">
+          <Card className="premium-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <TimerReset className="h-4 w-4" />
+                Needs attention queue
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-2">
+              {attentionQueue.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No priority action is open across approvals, escalations, or KPI risk.
+                </p>
+              ) : (
+                attentionQueue.map((item, index) => (
+                  <DecisionPanel
+                    icon={<AlertTriangle className="h-4 w-4 text-[color:var(--chart-4)]" />}
+                    key={`${item.title}-${item.label}-${index}`}
+                    label={item.severity}
+                    title={item.title}
+                  >
+                    <p className="text-sm font-medium">{item.label}</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+                  </DecisionPanel>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="premium-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <LineChart className="h-4 w-4" />
+                Performance distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <BarList data={performanceDistribution} />
+              <QualityMeter
+                detail={`${approvalSlaAging} day max approval aging across submitted sheets.`}
+                label="SLA control"
+                value={Math.max(0, 100 - approvalSlaAging * 12)}
               />
             </CardContent>
           </Card>
@@ -294,10 +479,10 @@ export default async function ManagerDashboardPage() {
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                   <p className="truncate text-sm font-medium">
-                                    {goal.title ?? 'Untitled shared KPI'}
+                                    {goalTitle(goal) ?? 'Untitled shared KPI'}
                                   </p>
                                   <p className="mt-1 text-xs text-muted-foreground">
-                                    {goal.thrustArea ?? goal.source} - {goal.weightage.toString()}%
+                                    {goalThrustArea(goal) ?? goal.source} - {goal.weightage.toString()}%
                                   </p>
                                 </div>
                                 <Badge
@@ -378,7 +563,7 @@ export default async function ManagerDashboardPage() {
                         <div>
                           <p className="text-sm font-medium">{employee.fullName}</p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {goal.title ?? 'Untitled shared KPI'}
+                            {goalTitle(goal) ?? 'Untitled shared KPI'}
                           </p>
                         </div>
                         <Badge variant="destructive">{analysis.riskScore}</Badge>
@@ -418,21 +603,12 @@ export default async function ManagerDashboardPage() {
             <Card className="premium-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Users className="h-4 w-4" />
-                  Recent signals
+                  <MailCheck className="h-4 w-4" />
+                  Notification simulation
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {notifications.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No manager notifications yet.</p>
-                ) : (
-                  notifications.map((notification) => (
-                    <div className="rounded-lg border bg-muted/30 p-3" key={notification.id}>
-                      <p className="text-sm font-medium">{notification.title}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{notification.body}</p>
-                    </div>
-                  ))
-                )}
+              <CardContent>
+                <NotificationCenter notifications={enterpriseNotifications} />
               </CardContent>
             </Card>
           </aside>

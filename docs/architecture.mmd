@@ -1,0 +1,57 @@
+flowchart LR
+  subgraph Client["Users and Role Portals"]
+    Employee["Employee Goal Cockpit"]
+    Manager["Manager Operating Center"]
+    Admin["Admin Governance Control Tower"]
+  end
+
+  subgraph Next["Next.js 14 App Router"]
+    UI["Server-first UI Components"]
+    Protected["Protected Route Groups"]
+    API["Route Handlers / API Routes"]
+    RBAC["RBAC Guards and Middleware"]
+  end
+
+  subgraph Auth["Identity Boundary"]
+    Supabase["Supabase Auth"]
+    Claims["Role Claims / Entra-ready Metadata"]
+  end
+
+  subgraph Domain["Domain and Service Layer"]
+    DAL["DAL / Prisma-backed Services"]
+    StateMachine["Goal Sheet State Machine"]
+    Validation["Zod Validation"]
+    Intelligence["Deterministic Execution Health Engine"]
+    Reporting["Analytics and CSV Reporting"]
+    Notifications["Simulated Email / Teams Notifications"]
+  end
+
+  subgraph Data["Persistence"]
+    Prisma["Prisma ORM"]
+    Postgres["PostgreSQL / Supabase DB"]
+    Audit["Governance Audit Ledger"]
+    Escalations["Escalation Rules and Events"]
+  end
+
+  Employee --> UI
+  Manager --> UI
+  Admin --> UI
+  UI --> Protected
+  Protected --> RBAC
+  API --> RBAC
+  RBAC --> Supabase
+  Supabase --> Claims
+  RBAC --> DAL
+  API --> Validation
+  Validation --> DAL
+  DAL --> StateMachine
+  DAL --> Intelligence
+  Intelligence --> Reporting
+  Intelligence --> Notifications
+  DAL --> Prisma
+  Prisma --> Postgres
+  DAL --> Audit
+  DAL --> Escalations
+  Audit --> Postgres
+  Escalations --> Postgres
+  Reporting --> API

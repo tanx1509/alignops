@@ -1,64 +1,93 @@
 # AlignOps
 
-Enterprise goal governance and execution operating system built as a Next.js modular monolith.
+AlignOps is an enterprise goal governance and execution intelligence platform built for AtomQuest Hackathon 1.0. It is designed as a believable internal operating layer for a 5000+ employee organization: employees define and execute goals, managers govern approvals and risk, and admins run org-wide policy, audit, escalation, and reporting.
 
-This repository is intentionally scaffolded for rapid hackathon execution without pretending to be a distributed enterprise platform. The current phase sets up the foundation only: auth boundaries, role-aware routing, Prisma/Postgres, shadcn/ui, environment validation, and module organization.
+## What It Does
+
+- Employee Goal Cockpit with progress rings, KPI confidence, SMART checks, quarterly timeline, nudges, blockers, and achievement forecasting.
+- Manager Operating Center with prioritized approval queue, execution risk radar, needs-attention queue, manager effectiveness, performance distribution, escalations, and notification simulation.
+- Admin Governance Control Tower with org health, department heatmaps, lifecycle matrix, audit intelligence, escalation tracking, unlock intervention, operational metrics, and CSV export.
+- Deterministic Execution Health Engine with no external AI APIs.
+- Seeded enterprise demo data that shows thriving, at-risk, delayed, escalated, and overloaded operating stories.
 
 ## Stack
 
 - Next.js 14 App Router
 - TypeScript strict mode
 - Tailwind CSS
-- shadcn/ui
 - Prisma ORM
-- PostgreSQL via Supabase or Neon
+- PostgreSQL via Supabase
 - Supabase Auth utilities
 - Zod validation
+- Lucide icons
 - Vercel deployment target
 
-## Exact Setup Commands
+## Architecture
 
-The project was scaffolded with:
+Architecture diagram: [`docs/architecture.mmd`](docs/architecture.mmd)
 
-```bash
-npx create-next-app@14.2.23 atomberg-goals --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --use-npm
+```mermaid
+flowchart LR
+  Portals["Employee / Manager / Admin Portals"] --> Next["Next.js App Router"]
+  Next --> RBAC["Middleware + RBAC Guards"]
+  RBAC --> Supabase["Supabase Auth"]
+  Next --> API["API Routes"]
+  API --> DAL["DAL / Service Layer"]
+  DAL --> Intelligence["Execution Health Engine"]
+  DAL --> Prisma["Prisma ORM"]
+  Prisma --> Postgres["PostgreSQL"]
+  DAL --> Audit["Audit / Escalation / Notification Models"]
 ```
 
-Next was upgraded within the requested Next 14 line:
+## Feature Matrix
+
+| Area | Status |
+| --- | --- |
+| Auth/session architecture | Complete |
+| Role-based access control | Complete |
+| Employee, Manager, Admin portals | Complete |
+| Goal creation, refinement, submit, approve, return, lock, unlock | Complete |
+| Shared goals | Complete |
+| Quarterly check-ins and progress scoring | Complete |
+| Governance dashboards and reporting | Complete |
+| Audit logs | Complete |
+| Escalation rules and events | Complete |
+| SMART scoring and KPI intelligence | Complete |
+| Notification feed with Teams/email previews | Complete simulation |
+| CSV export | Complete |
+| Entra-ready identity placeholders | Complete placeholder |
+| Real email/Teams integration | Optional future scope |
+| Real-time updates | Optional future scope |
+
+Detailed BRD coverage: [`docs/brd-coverage.md`](docs/brd-coverage.md)
+
+## Demo Credentials
+
+The Prisma seed creates application users and roles. Create matching Supabase Auth users with these emails. Recommended shared demo password: `AlignOps@123`.
+
+| Role | Email | Story |
+| --- | --- | --- |
+| Admin | `aditi.rao@alignops.local` | Governance owner |
+| Manager | `rohan.mehta@alignops.local` | Overloaded product manager |
+| Manager | `manav.shah@alignops.local` | Healthy sales manager |
+| Employee | `nisha.iyer@alignops.local` | Thriving employee |
+| Employee | `aman.gupta@alignops.local` | At-risk employee |
+| Employee | `kabir.ali@alignops.local` | Delayed and escalated employee |
+
+Full walkthrough: [`docs/demo-walkthrough.md`](docs/demo-walkthrough.md)
+
+## Setup
 
 ```bash
-npm install next@14.2.35 eslint-config-next@14.2.35
-```
-
-Core dependencies:
-
-```bash
-npm install @prisma/client@6.19.3 @supabase/ssr @supabase/supabase-js zod @t3-oss/env-nextjs clsx tailwind-merge class-variance-authority lucide-react
-npm install -D prisma@6.19.3 dotenv
-```
-
-shadcn/ui initialization and starter components:
-
-```bash
-npx shadcn@latest init -d
-npx shadcn@latest add card badge table input label textarea select dropdown-menu separator skeleton alert avatar sheet form
-```
-
-Prisma initialization:
-
-```bash
-npx prisma init --datasource-provider postgresql
-```
-
-## Environment
-
-Copy the example file:
-
-```bash
+npm install
 cp .env.example .env.local
+npm run db:generate
+npm run db:migrate
+npm run db:seed
+npm run dev
 ```
 
-Required values:
+Required environment variables:
 
 ```bash
 DATABASE_URL="postgresql://postgres:[password]@[host]:6543/postgres?pgbouncer=true&connection_limit=1"
@@ -70,128 +99,25 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 SKIP_ENV_VALIDATION="false"
 ```
 
-Use `SKIP_ENV_VALIDATION=true` only for local codegen/typecheck when real secrets are unavailable.
-
-## Development Commands
-
-```bash
-npm run dev
-npm run lint
-npm run typecheck
-npm run build
-npm run db:generate
-npm run db:migrate
-npm run db:deploy
-npm run db:studio
-```
-
-## Directory Structure
-
-```txt
-src/
-  app/
-    (auth)/
-      login/
-      unauthorized/
-    (protected)/
-      employee/
-      manager/
-      admin/
-      error.tsx
-      layout.tsx
-      loading.tsx
-    globals.css
-    layout.tsx
-    page.tsx
-  components/
-    app/
-    feedback/
-    ui/
-  config/
-    env.ts
-    navigation.ts
-  lib/
-    auth/
-    db/
-    supabase/
-    utils.ts
-  modules/
-    audit/
-    checkins/
-    escalations/
-    goals/
-    org/
-    reporting/
-    shared-goals/
-  types/
-prisma/
-  schema.prisma
-middleware.ts
-```
-
-## Architecture Rules
-
-- Keep the app as a modular monolith.
-- Put workflow modules under `src/modules/<domain>`.
-- Keep reusable UI primitives under `src/components/ui`.
-- Keep shell-level app components under `src/components/app`.
-- Keep authorization in middleware and server-side guards.
-- Keep database access behind service functions when domain work begins.
-- Use Zod at module boundaries: forms, route handlers, server actions, and env config.
-- Do not add microservices, queues, websockets, or Docker unless a later requirement proves the need.
-
-## Auth and Roles
-
-Protected routes:
-
-- `/employee` requires `employee`
-- `/manager` requires `manager`
-- `/admin` requires `admin`
-
-Role hierarchy:
-
-```txt
-admin > manager > employee
-```
-
-Supabase user metadata may use either:
-
-```json
-{ "role": "manager" }
-```
-
-or:
-
-```json
-{ "roles": ["employee", "manager"] }
-```
-
-Server-side guards live in:
-
-```txt
-src/lib/auth/session.ts
-src/lib/auth/roles.ts
-```
-
-Middleware route protection lives in:
-
-```txt
-middleware.ts
-src/lib/supabase/middleware.ts
-```
-
-## Prisma Foundation
-
-The schema models users, role assignments, org units, reporting lines, cycles,
-goal sheets, goals, approvals, shared goals, check-ins, audit logs,
-notifications, and escalations.
+Deployment guide: [`docs/deployment.md`](docs/deployment.md)
 
 ## Verification
-
-The foundation currently passes:
 
 ```bash
 SKIP_ENV_VALIDATION=true npm run typecheck
 SKIP_ENV_VALIDATION=true npm run lint
-SKIP_ENV_VALIDATION=true DATABASE_URL="postgresql://postgres:postgres@localhost:5432/atomberg?schema=public" NEXT_PUBLIC_SUPABASE_URL="https://example.supabase.co" NEXT_PUBLIC_SUPABASE_ANON_KEY="placeholder-anon-key" NEXT_PUBLIC_APP_URL="http://localhost:3000" npm run build
+SKIP_ENV_VALIDATION=true npm run build
 ```
+
+## Cost-Conscious Architecture
+
+AlignOps stays a modular monolith on purpose. Server components, Prisma, Supabase, deterministic scoring, on-demand CSV exports, and simulated notifications keep the architecture realistic for hackathon delivery while avoiding unnecessary queues, microservices, paid AI APIs, or enterprise messaging integrations.
+
+## Scalability Roadmap
+
+- Add Entra SSO group mapping through Supabase Auth metadata.
+- Add real Teams adaptive cards and email delivery behind the existing notification model.
+- Add historical cycle comparison once multiple production cycles exist.
+- Add background escalation jobs for production schedules.
+- Add observability with structured logs, error monitoring, and audit export retention.
+- Add real-time manager/admin refresh for live demo and production operations.

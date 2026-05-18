@@ -314,6 +314,68 @@ function sheetFinalStatus(index: number) {
   return GoalSheetStatus.DRAFT;
 }
 
+function employeeGoalTemplates(employeeId: string, orgUnitId: string) {
+  const templates = individualGoalTemplates(orgUnitId).map((goal) => ({
+    ...goal,
+  }));
+
+  if (employeeId === id(32)) {
+    const firstGoal = templates[0];
+    const secondGoal = templates[1];
+
+    if (firstGoal) {
+      firstGoal.title = "Improve firmware quality";
+      firstGoal.description = "Improve firmware quality and support reliability work across open release items.";
+      firstGoal.targetNumeric = "2.00";
+      firstGoal.weightage = "55.00";
+    }
+
+    if (secondGoal) {
+      secondGoal.title = "Improve firmware quality";
+      secondGoal.description = "Support firmware fixes without a clear milestone owner or measurable release acceptance criteria.";
+      secondGoal.targetDate = dt("2026-05-25");
+      secondGoal.weightage = "15.00";
+    }
+  }
+
+  if (employeeId === id(33)) {
+    const firstGoal = templates[0];
+
+    if (firstGoal) {
+      firstGoal.title = "Support release quality improvements";
+      firstGoal.description = "Help improve product quality and coordinate with teams on defects.";
+      firstGoal.targetNumeric = "99.00";
+      firstGoal.weightage = "50.00";
+    }
+  }
+
+  if (employeeId === id(34)) {
+    const firstGoal = templates[0];
+
+    if (firstGoal) {
+      firstGoal.title = "Work on launch operations";
+      firstGoal.description = "Support launch operations and help teams move faster.";
+      firstGoal.targetNumeric = "99.00";
+      firstGoal.weightage = "50.00";
+    }
+  }
+
+  return templates;
+}
+
+const progressProfiles = new Map<string, number[]>([
+  [id(11), [94, 88, 91]],
+  [id(12), [72, 68, 63]],
+  [id(13), [81, 76, 70]],
+  [id(14), [58, 52, 48]],
+  [id(21), [86, 79, 74]],
+  [id(22), [64, 59, 57]],
+  [id(23), [71, 67, 61]],
+  [id(24), [39, 33, 27]],
+  [id(31), [48, 41, 36]],
+  [id(32), [24, 17, 12]],
+]);
+
 async function main() {
   await prisma.orgUnit.upsert({
     where: { id: companyId },
@@ -576,14 +638,14 @@ async function main() {
       update: {
         source: GoalSource.SHARED,
         status: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? GoalStatus.LOCKED : GoalStatus.ACTIVE,
-        title: sharedDefinition.title,
-        description: sharedDefinition.description,
-        thrustArea: sharedDefinition.thrustArea,
-        uomType: sharedDefinition.uomType,
-        direction: sharedDefinition.direction,
-        targetNumeric: sharedDefinition.targetNumeric,
-        targetDate: sharedDefinition.targetDate,
-        lockedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-20") : null,
+        title: null,
+        description: null,
+        thrustArea: null,
+        uomType: null,
+        direction: null,
+        targetNumeric: null,
+        targetDate: null,
+        lockedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-17") : null,
         weightage: "30.00",
         updatedById: employee.id,
       },
@@ -593,15 +655,15 @@ async function main() {
         source: GoalSource.SHARED,
         status: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? GoalStatus.LOCKED : GoalStatus.ACTIVE,
         sortOrder: 1,
-        title: sharedDefinition.title,
-        description: sharedDefinition.description,
-        thrustArea: sharedDefinition.thrustArea,
-        uomType: sharedDefinition.uomType,
-        direction: sharedDefinition.direction,
-        targetNumeric: sharedDefinition.targetNumeric,
-        targetDate: sharedDefinition.targetDate,
+        title: null,
+        description: null,
+        thrustArea: null,
+        uomType: null,
+        direction: null,
+        targetNumeric: null,
+        targetDate: null,
         weightage: "30.00",
-        lockedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-20") : null,
+        lockedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-17") : null,
         createdById: employee.id,
         updatedById: employee.id,
       },
@@ -640,7 +702,7 @@ async function main() {
       });
     }
 
-    const individualGoals = individualGoalTemplates(employee.primaryOrgUnitId);
+    const individualGoals = employeeGoalTemplates(employee.id, employee.primaryOrgUnitId);
 
     for (const [goalIndex, goal] of individualGoals.entries()) {
       await prisma.goal.upsert({
@@ -649,7 +711,7 @@ async function main() {
           ...goal,
           source: GoalSource.INDIVIDUAL,
           status: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? GoalStatus.LOCKED : GoalStatus.ACTIVE,
-          lockedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-20") : null,
+          lockedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-17") : null,
           updatedById: employee.id,
         },
         create: {
@@ -659,7 +721,7 @@ async function main() {
           status: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? GoalStatus.LOCKED : GoalStatus.ACTIVE,
           sortOrder: goalIndex + 2,
           ...goal,
-          lockedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-20") : null,
+          lockedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-17") : null,
           createdById: employee.id,
           updatedById: employee.id,
         },
@@ -673,8 +735,12 @@ async function main() {
 
     if (finalStatus !== GoalSheetStatus.DRAFT) {
       for (const [goalIndex, goalId] of sheetGoalIds.entries()) {
-        const baseProgress = finalStatus === GoalSheetStatus.APPROVED_LOCKED ? 58 : 28;
-        const progress = Math.min(100, baseProgress + index * 3 + goalIndex * 6);
+        const profile = progressProfiles.get(employee.id);
+        const fallbackBaseProgress = finalStatus === GoalSheetStatus.APPROVED_LOCKED ? 58 : 28;
+        const progress = Math.min(
+          100,
+          profile?.[goalIndex] ?? fallbackBaseProgress + index * 3 + goalIndex * 6,
+        );
         const status =
           progress >= 92
             ? AchievementStatus.COMPLETED
@@ -755,9 +821,9 @@ async function main() {
           status: finalStatus,
           returnedAt: finalStatus === GoalSheetStatus.SUBMITTED && index === 8 ? dt("2026-05-14") : null,
           submittedAt: dt("2026-05-12"),
-          approvedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-20") : null,
+          approvedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-17") : null,
           approvedById: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? managerId : null,
-          lockedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-20") : null,
+          lockedAt: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? dt("2026-05-17") : null,
           lockReason: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? "Manager approval completed" : null,
           updatedById: finalStatus === GoalSheetStatus.APPROVED_LOCKED ? managerId : employee.id,
         },
@@ -857,7 +923,7 @@ async function main() {
           fromStatus: GoalSheetStatus.SUBMITTED,
           toStatus: GoalSheetStatus.APPROVED_LOCKED,
           comment: "Approved and locked for FY2026.",
-          createdAt: dt("2026-05-20"),
+          createdAt: dt("2026-05-17"),
         },
       });
 
@@ -871,7 +937,7 @@ async function main() {
           actorRole: AppRole.MANAGER,
           after: { status: GoalSheetStatus.APPROVED_LOCKED },
           before: { status: GoalSheetStatus.SUBMITTED },
-          createdAt: dt("2026-05-20"),
+          createdAt: dt("2026-05-17"),
           entityId: sheetId,
           entityType: AuditEntityType.GOAL_SHEET,
           reason: "Manager approval completed for FY2026.",
@@ -979,7 +1045,63 @@ async function main() {
     },
   });
 
-  console.log("Seed completed: 1 admin, 3 managers, 12 employees, active cycle, goal sheets, shared goals, escalation rules.");
+  const atRiskEmployee = employeeUsers.find((employee) => employee.id === id(32));
+  if (atRiskEmployee) {
+    const atRiskManagerId = managersByOrgUnit.get(atRiskEmployee.primaryOrgUnitId);
+
+    if (atRiskManagerId) {
+      const atRiskSheetId = id(5000 + Number(atRiskEmployee.employeeCode.slice(-4)));
+
+      await prisma.escalationEvent.upsert({
+        where: { id: id(951) },
+        update: {
+          status: EscalationStatus.ACKNOWLEDGED,
+          updatedById: adminId,
+        },
+        create: {
+          id: id(951),
+          ruleId: id(902),
+          cycleId,
+          goalSheetId: atRiskSheetId,
+          employeeId: atRiskEmployee.id,
+          managerId: atRiskManagerId,
+          currentLevel: EscalationLevel.HR,
+          status: EscalationStatus.ACKNOWLEDGED,
+          triggeredAt: dt("2026-05-17"),
+          dueAt: dt("2026-05-18"),
+          acknowledgedAt: dt("2026-05-18"),
+          metadata: {
+            reason:
+              "Submitted sheet contains duplicate KPI wording and high execution risk.",
+          },
+          createdById: adminId,
+          updatedById: adminId,
+        },
+      });
+
+      await prisma.notification.upsert({
+        where: { id: id(961) },
+        update: {
+          status: NotificationStatus.UNREAD,
+          updatedAt: new Date(),
+        },
+        create: {
+          id: id(961),
+          recipientId: atRiskManagerId,
+          actorId: adminId,
+          type: NotificationType.ESCALATION,
+          status: NotificationStatus.UNREAD,
+          title: "Approval SLA and KPI risk escalation",
+          body: `${atRiskEmployee.fullName}'s submitted sheet is aging with duplicate KPI and target risk signals.`,
+          linkHref: "/manager",
+          entityType: AuditEntityType.ESCALATION_EVENT,
+          entityId: id(951),
+        },
+      });
+    }
+  }
+
+  console.log("Seed completed: 1 admin, 3 managers, 12 employees, active cycle, cinematic goal sheets, shared goals, escalation rules, notifications.");
 }
 
 main()

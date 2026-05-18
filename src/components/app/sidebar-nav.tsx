@@ -3,17 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { roleNavigation } from "@/config/navigation";
 import { cn } from "@/lib/utils";
-import type { NavItem } from "@/config/navigation";
+import type { AppRole } from "@/types/auth";
 
 export function SidebarNav({
-  items,
+  role,
   variant = "sidebar",
 }: {
-  items: NavItem[];
+  role: AppRole;
   variant?: "mobile" | "sidebar";
 }) {
   const pathname = usePathname();
+  const items = roleNavigation[role];
 
   if (variant === "mobile") {
     return (

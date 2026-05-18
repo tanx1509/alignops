@@ -61,7 +61,7 @@ export default async function AdminGovernancePage() {
             </Badge>
           </div>
         }
-        title="Policy Enforcement"
+        title="Policy Enforcement and Unlock Intervention"
       />
 
       <div className="space-y-5 p-5 xl:p-8">
@@ -100,7 +100,7 @@ export default async function AdminGovernancePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <LockKeyhole className="h-4 w-4" />
-                Locked sheets
+                Unlock intervention center
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">

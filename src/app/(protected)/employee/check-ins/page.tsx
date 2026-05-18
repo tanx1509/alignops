@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { requireUser } from '@/lib/auth/session'
 import { getEmployeeCheckInDesk } from '@/lib/dal/dashboard.dal'
+import { goalTitle } from '@/lib/goal-intelligence'
 
 function progressValue(
   updates: Array<{
@@ -71,7 +72,7 @@ export default async function EmployeeCheckInsPage() {
                     <Badge variant="secondary">{goal.source}</Badge>
                   </div>
                   <CardTitle className="text-lg tracking-normal">
-                    {goal.title ?? 'Untitled goal'}
+                    {goalTitle(goal) ?? 'Untitled goal'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">

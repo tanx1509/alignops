@@ -1,5 +1,5 @@
 import { GoalSheetStatus } from '@prisma/client'
-import { LockKeyhole, Settings, ShieldCheck, Users } from 'lucide-react'
+import { KeyRound, LockKeyhole, Settings, ShieldCheck, Users } from 'lucide-react'
 
 import { MetricCard } from '@/components/app/metric-card'
 import { PageHeader } from '@/components/app/page-header'
@@ -124,6 +124,38 @@ export default async function AdminSettingsPage() {
                 </div>
               </div>
             ))}
+          </CardContent>
+        </Card>
+
+        <Card className="premium-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <KeyRound className="h-4 w-4" />
+              Entra-ready identity placeholders
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <p className="text-xs text-muted-foreground">Group claim mapping</p>
+              <p className="mt-2 font-semibold">Admin / Manager / Employee</p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Supabase role claims are already normalized before RBAC checks run.
+              </p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <p className="text-xs text-muted-foreground">SSO boundary</p>
+              <p className="mt-2 font-semibold">Supabase Auth adapter</p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Entra SAML/OIDC can land in the existing session and metadata flow.
+              </p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <p className="text-xs text-muted-foreground">Audit alignment</p>
+              <p className="mt-2 font-semibold">Actor and role persisted</p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Critical lifecycle actions retain actor role, entity, reason, and timestamp.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

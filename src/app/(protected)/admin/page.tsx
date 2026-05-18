@@ -1,11 +1,16 @@
 import { GoalSheetStatus } from '@prisma/client'
+import Link from 'next/link'
 import {
   AlertTriangle,
   Building2,
+  Download,
   FileClock,
   Gauge,
   LockKeyhole,
+  MailCheck,
+  Network,
   ShieldCheck,
+  TimerReset,
   TrendingUp,
 } from 'lucide-react'
 
@@ -21,6 +26,11 @@ import {
   SignalList,
 } from '@/components/app/intelligence-panels'
 import { MetricCard } from '@/components/app/metric-card'
+import { NotificationCenter, type EnterpriseNotification } from '@/components/app/notification-center'
+import {
+  DecisionPanel,
+  ExecutionHealthPanel,
+} from '@/components/app/operating-panels'
 import { PageHeader } from '@/components/app/page-header'
 import { StatusPill } from '@/components/app/status-pill'
 import { Timeline } from '@/components/app/timeline'
@@ -66,6 +76,76 @@ export default async function AdminDashboardPage() {
   const highRiskSheets = sheetViews.filter(
     (view) => view.intelligence.highRiskGoals > 0,
   )
+  const orgRiskScore =
+    sheetViews.length > 0
+      ? Math.round(
+          sheetViews.reduce(
+            (sum, view) => sum + view.intelligence.executionRiskScore,
+            0,
+          ) / sheetViews.length,
+        )
+      : 0
+  const orgKpiConfidence =
+    sheetViews.length > 0
+      ? Math.round(
+          sheetViews.reduce(
+            (sum, view) => sum + view.intelligence.kpiConfidence,
+            0,
+          ) / sheetViews.length,
+        )
+      : 0
+  const maxApprovalAging = sheetViews.reduce(
+    (max, view) => Math.max(max, view.intelligence.approvalSlaDays),
+    0,
+  )
+  const governanceBottlenecks = [
+    {
+      detail: `${drafts} sheet${drafts === 1 ? '' : 's'} have not entered manager review.`,
+      label: `${percent(drafts, sheets.length)}% of org`,
+      title: 'Employee submission drag',
+    },
+    {
+      detail: `${submitted} sheet${submitted === 1 ? '' : 's'} are waiting for manager decisions.`,
+      label: `${maxApprovalAging}d max SLA`,
+      title: 'Approval bottleneck',
+    },
+    {
+      detail: `${overdueCheckIns} check-in obligation${overdueCheckIns === 1 ? '' : 's'} are missing.`,
+      label: 'Quarterly compliance',
+      title: 'Check-in compliance',
+    },
+    {
+      detail: `${adminUnlocked} policy exception${adminUnlocked === 1 ? '' : 's'} are open under HR control.`,
+      label: 'Unlock control',
+      title: 'Exception governance',
+    },
+  ].filter((item) => !item.detail.startsWith('0 '))
+  const enterpriseNotifications: EnterpriseNotification[] = [
+    ...escalations.slice(0, 4).map((event) => ({
+      body: `${event.employee.fullName} has an open ${event.currentLevel} escalation owned by ${event.manager?.fullName ?? 'HR'}.`,
+      channel: 'Email' as const,
+      createdAt: event.triggeredAt.toLocaleDateString(),
+      ctaHref: '/admin/governance',
+      ctaLabel: 'Open governance',
+      id: `escalation-${event.id}`,
+      previewBody: `Escalation owner: ${event.manager?.fullName ?? 'HR'}\nEmployee: ${event.employee.fullName}\nDue: ${event.dueAt.toLocaleDateString()}\n\nRecommended action: review the policy exception, acknowledge ownership, and document resolution notes.`,
+      previewSubject: `Escalation requires governance review: ${event.employee.fullName}`,
+      priority: 'high' as const,
+      title: 'Escalation tracking alert',
+    })),
+    ...auditLogs.slice(0, 3).map((log) => ({
+      body: `${log.action} on ${log.entityType} by ${log.actor?.fullName ?? 'System'}.`,
+      channel: 'System' as const,
+      createdAt: log.createdAt.toLocaleDateString(),
+      ctaHref: '/admin/audit',
+      ctaLabel: 'Open audit log',
+      id: `audit-${log.id}`,
+      previewBody: `${log.reason ?? 'No reason captured.'}\n\nActor role: ${log.actorRole ?? 'SYSTEM'}\nTimestamp: ${log.createdAt.toLocaleString()}`,
+      previewSubject: `Audit event captured: ${log.action}`,
+      priority: log.action === 'UNLOCK' ? ('high' as const) : ('low' as const),
+      title: 'Audit intelligence event',
+    })),
+  ].slice(0, 6)
   const orgRows = orgUnits
     .filter((unit) => sheets.some((sheet) => sheet.orgUnit?.id === unit.id))
     .map((unit) => {
@@ -173,6 +253,24 @@ export default async function AdminDashboardPage() {
           />
         </section>
 
+        <ExecutionHealthPanel
+          confidence={orgKpiConfidence}
+          cycleProgress={sheetViews[0]?.intelligence.cycleProgress ?? 0}
+          forecastDetail={`${governanceBottlenecks.length} governance bottleneck${governanceBottlenecks.length === 1 ? '' : 's'} detected across submissions, manager approvals, check-ins, and unlocks.`}
+          forecastLabel="Org execution governance pulse"
+          momentum={
+            orgRiskScore >= 55
+              ? 'Governance intervention'
+              : governanceHealth >= 78
+                ? 'Enterprise rhythm healthy'
+                : 'Bottleneck watch'
+          }
+          riskScore={orgRiskScore}
+          score={governanceHealth}
+          stageProgress={completionRate}
+          title="Organizational execution health engine"
+        />
+
         <section className="grid gap-5 xl:grid-cols-[1fr_24rem]">
           <Card className="premium-card">
             <CardHeader>
@@ -265,6 +363,78 @@ export default async function AdminDashboardPage() {
                 ]}
                 emptyLabel="No elevated governance trends."
               />
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="grid gap-5 xl:grid-cols-[1fr_24rem]">
+          <Card className="premium-card">
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <TimerReset className="h-4 w-4" />
+                    Governance bottleneck insights
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Deterministic queue pressure across the current operating cycle.
+                  </p>
+                </div>
+                <Link
+                  className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border bg-background px-2.5 text-sm font-medium transition-colors hover:bg-muted"
+                  href="/api/reports/governance.csv"
+                >
+                  <Download className="h-4 w-4" />
+                  Export CSV
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-2">
+              {governanceBottlenecks.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No meaningful cycle bottleneck is currently visible.
+                </p>
+              ) : (
+                governanceBottlenecks.map((item) => (
+                  <DecisionPanel
+                    icon={<AlertTriangle className="h-4 w-4 text-[color:var(--chart-4)]" />}
+                    key={item.title}
+                    label={item.label}
+                    title={item.title}
+                  >
+                    <p className="text-xs leading-5 text-muted-foreground">{item.detail}</p>
+                  </DecisionPanel>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="premium-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Network className="h-4 w-4" />
+                Role hierarchy visibility
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="rounded-lg border bg-background/70 p-3">
+                <p className="text-sm font-medium">Admin to managers</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  HR controls cycle governance, policy unlocks, and audit review across {orgUnits.length} org units.
+                </p>
+              </div>
+              <div className="rounded-lg border bg-background/70 p-3">
+                <p className="text-sm font-medium">Managers to employees</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Submitted goal sheets require manager decision before execution locks.
+                </p>
+              </div>
+              <div className="rounded-lg border bg-background/70 p-3">
+                <p className="text-sm font-medium">Entra-ready identity boundary</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Roles are normalized in the app layer and can be mapped from Entra groups through Supabase claims.
+                </p>
+              </div>
             </CardContent>
           </Card>
         </section>
@@ -376,6 +546,43 @@ export default async function AdminDashboardPage() {
                   meta: log.createdAt.toLocaleDateString(),
                   title: `${log.action} ${log.entityType} by ${log.actor?.fullName ?? 'System'}`,
                 }))}
+              />
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="grid gap-5 xl:grid-cols-[1fr_24rem]">
+          <Card className="premium-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <MailCheck className="h-4 w-4" />
+                Enterprise notification simulation
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <NotificationCenter notifications={enterpriseNotifications} />
+            </CardContent>
+          </Card>
+
+          <Card className="premium-card">
+            <CardHeader>
+              <CardTitle className="text-base">Platform operational metrics</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <QualityMeter
+                detail="CSV exports and dashboards are computed from existing Prisma data without external AI or paid services."
+                label="Cost efficiency"
+                value={96}
+              />
+              <QualityMeter
+                detail={`${auditLogs.length} recent events available for compliance traceability.`}
+                label="Audit coverage"
+                value={Math.min(100, auditLogs.length * 5)}
+              />
+              <QualityMeter
+                detail={`${adminUnlocked} active unlock exception${adminUnlocked === 1 ? '' : 's'} under HR control.`}
+                label="Exception control"
+                value={adminUnlocked === 0 ? 100 : Math.max(40, 100 - adminUnlocked * 18)}
               />
             </CardContent>
           </Card>

@@ -49,6 +49,21 @@ export async function getEmployeeOperatingSystem(employeeId: string) {
               submittedAt: 'desc',
             },
           },
+          sharedGoalLink: {
+            include: {
+              sharedGoalDefinition: {
+                select: {
+                  description: true,
+                  direction: true,
+                  targetDate: true,
+                  targetNumeric: true,
+                  thrustArea: true,
+                  title: true,
+                  uomType: true,
+                },
+              },
+            },
+          },
         },
         orderBy: {
           sortOrder: 'asc',
@@ -139,6 +154,21 @@ export async function getManagerOperatingQueue(managerId: string) {
                 submittedAt: 'desc',
               },
               take: 1,
+            },
+            sharedGoalLink: {
+              include: {
+                sharedGoalDefinition: {
+                  select: {
+                    description: true,
+                    direction: true,
+                    targetDate: true,
+                    targetNumeric: true,
+                    thrustArea: true,
+                    title: true,
+                    uomType: true,
+                  },
+                },
+              },
             },
           },
           orderBy: {
@@ -246,6 +276,21 @@ export async function getAdminControlTower() {
               },
               orderBy: {
                 submittedAt: 'desc',
+              },
+            },
+            sharedGoalLink: {
+              include: {
+                sharedGoalDefinition: {
+                  select: {
+                    description: true,
+                    direction: true,
+                    targetDate: true,
+                    targetNumeric: true,
+                    thrustArea: true,
+                    title: true,
+                    uomType: true,
+                  },
+                },
               },
             },
           },

@@ -9,7 +9,6 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarNav } from "@/components/app/sidebar-nav";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { ToastHub } from "@/components/app/toast-hub";
-import { roleNavigation } from "@/config/navigation";
 import { getHighestRoleFromRoles } from "@/lib/auth/roles";
 import type { AuthUserSummary } from "@/types/auth";
 
@@ -21,7 +20,12 @@ export function AppShell({
   user: AuthUserSummary;
 }) {
   const activeRole = getHighestRoleFromRoles(user.roles);
-  const navItems = roleNavigation[activeRole];
+  const notificationHref =
+    activeRole === "admin"
+      ? "/admin/reports"
+      : activeRole === "manager"
+        ? "/manager"
+        : "/employee/check-ins";
 
   return (
     <div className="min-h-screen bg-background">
@@ -42,7 +46,7 @@ export function AppShell({
 
           <Separator />
 
-          <SidebarNav items={navItems} />
+          <SidebarNav role={activeRole} />
 
           <Separator />
 
@@ -85,14 +89,14 @@ export function AppShell({
 
           <div className="flex items-center gap-2">
             <CommandPalette activeRole={activeRole} user={user} />
-            <button
+            <Link
               aria-label="Notifications"
               className="relative flex h-8 w-8 items-center justify-center rounded-lg border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              type="button"
+              href={notificationHref}
             >
               <Bell className="h-4 w-4" />
               <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[color:var(--chart-4)]" />
-            </button>
+            </Link>
             <div className="hidden sm:block">
               <ThemeToggle />
             </div>
@@ -101,7 +105,7 @@ export function AppShell({
             </div>
           </div>
         </header>
-        <SidebarNav items={navItems} variant="mobile" />
+        <SidebarNav role={activeRole} variant="mobile" />
 
         <main className="min-h-[calc(100vh-4rem)]">{children}</main>
       </div>
