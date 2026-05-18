@@ -34,6 +34,28 @@
 
 </div>
 
+## Live Access
+
+### Production Deployment
+
+[https://alignops-five.vercel.app/login]
+
+### Demo Credentials
+
+Use password:
+
+```text
+AlignOps@123
+```
+
+| Role | Email |
+|---|---|
+| Admin | `aditi.rao@alignops.local` |
+| Manager | `rohan.mehta@alignops.local` |
+| Employee | `nisha.iyer@alignops.local` |
+
+---
+
 ## The Problem
 
 > **Enterprise execution doesn't fail because goals aren't written. It fails because no one can see when execution is breaking down until it's too late.**
